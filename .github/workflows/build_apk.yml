@@ -32,6 +32,7 @@ jobs:
             flutter create --platforms=android --org com.marketanomaly --project-name market_anomaly /tmp/scaffold
             cp -r /tmp/scaffold/android ./android
             sed -i 's/android:label="market_anomaly"/android:label="Market Anomaly"/' android/app/src/main/AndroidManifest.xml
+            sed -i '/<manifest /a\    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
           else
             echo "Cartella android/ già presente, la riuso."
           fi
