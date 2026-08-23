@@ -79,7 +79,7 @@ class ApiClient {
     try {
       final r = await http
           .post(_uri(path, query), headers: _headers, body: body != null ? jsonEncode(body) : null)
-          .timeout(const Duration(seconds: 60));
+          .timeout(const Duration(seconds: 30));
       return _handle(r);
     } on ApiException {
       rethrow;
@@ -120,8 +120,17 @@ class ApiClient {
     return r as Map<String, dynamic>;
   }
 
+  /// Avvia una scansione in background sul server. Torna SUBITO
+  /// (non aspetta che finisca) — usa getScanStatus() per sapere quando è pronta.
   Future<Map<String, dynamic>> triggerScan({int limit = 100}) async {
     final r = await _post('/api/scan', null, {'limit': limit});
+    return r as Map<String, dynamic>;
+  }
+
+  /// Controlla lo stato della scansione in corso sul server.
+  /// status può essere: idle | running | done | error
+  Future<Map<String, dynamic>> getScanStatus() async {
+    final r = await _get('/api/scan/status');
     return r as Map<String, dynamic>;
   }
 
