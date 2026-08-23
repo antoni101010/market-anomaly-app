@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../api_client.dart';
@@ -18,11 +19,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _loading = false;
   bool _scanning = false;
   String? _error;
+  String _scanMessage = '';
+  Timer? _pollTimer;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -45,16 +54,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _runScan() async {
-    setState(() => _scanning = true);
+    setState(() {
+      _scanning = true;
+      _scanMessage = 'Avvio scansione...';
+    });
     try {
-      await ApiClient.instance.triggerScan(limit: 100);
-      await _load();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Errore scansione: $e')));
+      final result = await ApiClient.instance.triggerScan(limit: 100);
+      if (result['ok'] != true) {
+        // Una scansione era già in corso sul server: iniziamo comunque a monitorarla.
+        setState(() => _scanMessage = result['message'] ?? 'Scansione già in corso, la seguo...');
       }
-    } finally {
-      setState(() => _scanning = false);
+      _pollTimer?.cancel();
+      _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => _pollScanStatus());
+    } catch (e) {
+      setState(() {
+        _scanning = false;
+        _scanMessage = '';
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Errore avvio scansione: $e')));
+      }
+    }
+  }
+
+  Future<void> _pollScanStatus() async {
+    try {
+      final status = await ApiClient.instance.getScanStatus();
+      final st = status['status'] as String? ?? 'idle';
+
+      if (st == 'running') {
+        setState(() => _scanMessage = status['message'] ?? 'Scansione in corso...');
+        return; // continua a controllare
+      }
+
+      // Finita (done o error): fermiamo il timer.
+      _pollTimer?.cancel();
+      setState(() {
+        _scanning = false;
+        _scanMessage = '';
+      });
+
+      if (st == 'error') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Scansione fallita: ${status['message'] ?? 'errore sconosciuto'}')),
+          );
+        }
+      } else {
+        await _load(); // st == 'done' → ricarica la dashboard con i nuovi dati
+      }
+    } catch (e) {
+      // Errore temporaneo di rete durante il polling: non interrompiamo,
+      // riproveremo al prossimo tick del timer.
     }
   }
 
@@ -127,7 +178,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final data = _data;
     if (data == null) return const SizedBox.shrink();
 
-    if (data.scanTime == null) {
+    if (data.scanTime == null && !_scanning) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
@@ -135,8 +186,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             icon: Icons.query_stats_outlined,
             title: 'Nessuna scansione ancora eseguita',
             subtitle: 'Tocca "Aggiorna" per analizzare il mercato.',
-            actionLabel: _scanning ? null : 'Scansiona ora',
-            onAction: _scanning ? null : _runScan,
+            actionLabel: 'Scansiona ora',
+            onAction: _runScan,
           ),
         ],
       );
@@ -146,6 +197,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
+        if (_scanning)
+          Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.blue.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const SizedBox(
+                  height: 18, width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    _scanMessage.isEmpty ? 'Scansione in corso sul server...' : _scanMessage,
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+          ),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
