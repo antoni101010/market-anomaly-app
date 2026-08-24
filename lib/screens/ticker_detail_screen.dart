@@ -20,8 +20,10 @@ class TickerDetailScreen extends StatefulWidget {
 class _TickerDetailScreenState
     extends State<TickerDetailScreen> {
   TickerDetail? _detail;
+
   bool _loading = true;
   bool _watchlistBusy = false;
+
   String? _error;
 
   @override
@@ -39,8 +41,11 @@ class _TickerDetailScreenState
     }
 
     try {
-      final detail = await ApiClient.instance
-          .getTickerDetail(widget.ticker);
+      final detail =
+          await ApiClient.instance
+              .getTickerDetail(
+        widget.ticker,
+      );
 
       if (!mounted) return;
 
@@ -65,7 +70,10 @@ class _TickerDetailScreenState
   Future<void> _toggleWatchlist() async {
     final detail = _detail;
 
-    if (detail == null || _watchlistBusy) return;
+    if (detail == null ||
+        _watchlistBusy) {
+      return;
+    }
 
     setState(() {
       _watchlistBusy = true;
@@ -74,21 +82,28 @@ class _TickerDetailScreenState
     try {
       if (detail.inWatchlist) {
         await ApiClient.instance
-            .removeFromWatchlist(detail.ticker);
+            .removeFromWatchlist(
+          detail.ticker,
+        );
       } else {
         await ApiClient.instance
-            .addToWatchlist(detail.ticker);
+            .addToWatchlist(
+          detail.ticker,
+        );
       }
 
       await _load();
     } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error.toString()),
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            error.toString(),
           ),
-        );
-      }
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -106,16 +121,20 @@ class _TickerDetailScreenState
         actions: [
           if (_detail != null)
             IconButton(
-              tooltip: _detail!.inWatchlist
-                  ? 'Rimuovi dalla watchlist'
-                  : 'Aggiungi alla watchlist',
+              tooltip:
+                  _detail!.inWatchlist
+                      ? 'Rimuovi dalla watchlist'
+                      : 'Aggiungi alla watchlist',
               onPressed:
-                  _watchlistBusy ? null : _toggleWatchlist,
+                  _watchlistBusy
+                      ? null
+                      : _toggleWatchlist,
               icon: _watchlistBusy
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(
+                      child:
+                          CircularProgressIndicator(
                         strokeWidth: 2,
                       ),
                     )
@@ -123,9 +142,10 @@ class _TickerDetailScreenState
                       _detail!.inWatchlist
                           ? Icons.star
                           : Icons.star_border,
-                      color: _detail!.inWatchlist
-                          ? Colors.amber
-                          : null,
+                      color:
+                          _detail!.inWatchlist
+                              ? Colors.amber
+                              : null,
                     ),
             ),
         ],
@@ -137,14 +157,16 @@ class _TickerDetailScreenState
   Widget _buildBody() {
     if (_loading) {
       return const Center(
-        child: CircularProgressIndicator(),
+        child:
+            CircularProgressIndicator(),
       );
     }
 
     if (_error != null) {
       return EmptyState(
         icon: Icons.error_outline,
-        title: 'Impossibile caricare i dati',
+        title:
+            'Impossibile caricare i dati',
         subtitle: _error,
         actionLabel: 'Riprova',
         onAction: _load,
@@ -157,73 +179,52 @@ class _TickerDetailScreenState
       return const SizedBox.shrink();
     }
 
-    final classification =
-        detail.narrative.classificationLabel;
-    final color = classificationColor(classification);
-    final conclusion = _buildConclusion(detail);
+    final color =
+        classificationColor(
+      detail.narrative
+          .classificationLabel,
+    );
 
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(
+        physics:
+            const AlwaysScrollableScrollPhysics(),
+        padding:
+            const EdgeInsets.fromLTRB(
           16,
           12,
           16,
           32,
         ),
         children: [
-          _buildHeader(detail),
+          _header(detail),
           const SizedBox(height: 16),
-          _buildConclusionCard(
+          _conclusionCard(
             detail,
-            conclusion,
             color,
           ),
           const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: ScoreBadge(
-                  label: 'Anomalia',
-                  value: detail.anomalyScore,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ScoreBadge(
-                  label: 'Valutazione',
-                  value: detail.valuationScore,
-                  color: _valuationColor(
-                    detail.valuationScore,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ScoreBadge(
-                  label: 'Affidabilità',
-                  value: detail.confidenceScore,
-                  color: _confidenceColor(
-                    detail.confidenceScore,
-                  ),
-                ),
-              ),
-            ],
-          ),
+          _mainScores(detail),
           const SizedBox(height: 24),
           _sectionTitle(
             'Perché è un movimento anomalo',
             Icons.trending_down,
             Colors.greenAccent,
           ),
-          if (detail.narrative.whyAnomaly.isEmpty)
-            _emptyExplanation(
+          if (detail
+              .narrative
+              .whyAnomaly
+              .isEmpty)
+            _emptyText(
               'Nessun segnale rilevato.',
             )
           else
-            ...detail.narrative.whyAnomaly.map(
-              (text) => _bulletCard(
+            ...detail
+                .narrative
+                .whyAnomaly
+                .map(
+              (text) => _bullet(
                 text,
                 Colors.greenAccent,
               ),
@@ -234,28 +235,39 @@ class _TickerDetailScreenState
             Icons.warning_amber_outlined,
             Colors.orangeAccent,
           ),
-          if (detail.narrative.whyNot.isEmpty)
-            _emptyExplanation(
-              'Nessuna criticità specifica rilevata.',
+          if (detail
+              .narrative
+              .whyNot
+              .isEmpty)
+            _emptyText(
+              'Nessuna criticità '
+              'specifica rilevata.',
             )
           else
-            ...detail.narrative.whyNot.map(
-              (text) => _bulletCard(
+            ...detail
+                .narrative
+                .whyNot
+                .map(
+              (text) => _bullet(
                 text,
                 Colors.orangeAccent,
               ),
             ),
           const SizedBox(height: 20),
-          _buildAdvancedSection(detail),
+          _advancedData(detail),
           const SizedBox(height: 24),
           Text(
-            'Analisi quantitativa a scopo di ricerca. '
-            'Non costituisce consulenza finanziaria né '
-            'raccomandazione di acquisto o vendita.',
+            'Analisi quantitativa a scopo '
+            'di ricerca. Non costituisce '
+            'consulenza finanziaria né '
+            'raccomandazione di acquisto '
+            'o vendita.',
             style: TextStyle(
-              color: Colors.grey.shade600,
+              color:
+                  Colors.grey.shade600,
               fontSize: 11,
-              fontStyle: FontStyle.italic,
+              fontStyle:
+                  FontStyle.italic,
               height: 1.4,
             ),
           ),
@@ -264,29 +276,36 @@ class _TickerDetailScreenState
     );
   }
 
-  Widget _buildHeader(TickerDetail detail) {
+  Widget _header(
+    TickerDetail detail,
+  ) {
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
       children: [
         Expanded(
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               Text(
                 detail.company,
                 style: const TextStyle(
                   fontSize: 17,
-                  fontWeight: FontWeight.w600,
+                  fontWeight:
+                      FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 3),
               Text(
                 detail.sectorEtf.isEmpty
                     ? detail.ticker
-                    : '${detail.ticker} · confronto '
+                    : '${detail.ticker} · '
+                        'confronto '
                         '${detail.sectorEtf}',
                 style: TextStyle(
-                  color: Colors.grey.shade500,
+                  color:
+                      Colors.grey.shade500,
                   fontSize: 12,
                 ),
               ),
@@ -295,23 +314,28 @@ class _TickerDetailScreenState
         ),
         const SizedBox(width: 12),
         Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
+          crossAxisAlignment:
+              CrossAxisAlignment.end,
           children: [
             Text(
-              detail.lastClose == null
-                  ? 'n/d'
-                  : '\$${detail.lastClose!.toStringAsFixed(2)}',
+              _priceText(
+                detail.lastClose,
+              ),
               style: const TextStyle(
                 fontSize: 21,
-                fontWeight: FontWeight.bold,
+                fontWeight:
+                    FontWeight.bold,
               ),
             ),
-            if (detail.drawdown52wPct != null)
+            if (detail
+                    .drawdown52wPct !=
+                null)
               Text(
                 '${detail.drawdown52wPct!.toStringAsFixed(1)}% '
                 'dal massimo 52 settimane',
                 style: const TextStyle(
-                  color: Colors.redAccent,
+                  color:
+                      Colors.redAccent,
                   fontSize: 11,
                 ),
               ),
@@ -321,61 +345,73 @@ class _TickerDetailScreenState
     );
   }
 
-  Widget _buildConclusionCard(
+  Widget _conclusionCard(
     TickerDetail detail,
-    String conclusion,
     Color color,
   ) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding:
+          const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.13),
-        borderRadius: BorderRadius.circular(14),
+        color: color.withValues(
+          alpha: 0.13,
+        ),
+        borderRadius:
+            BorderRadius.circular(14),
         border: Border.all(
-          color: color.withValues(alpha: 0.35),
+          color: color.withValues(
+            alpha: 0.35,
+          ),
         ),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Expanded(
                 child: Text(
-                  detail.narrative.classificationLabel,
+                  detail
+                      .narrative
+                      .classificationLabel,
                   style: TextStyle(
                     color: color,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+                    fontWeight:
+                        FontWeight.bold,
+                    fontSize: 12,
                   ),
                 ),
               ),
               Text(
-                '${detail.opportunityScore?.toStringAsFixed(0) ?? '-'}'
-                '/100',
+                '${_scoreText(detail.opportunityScore)}/100',
                 style: TextStyle(
                   color: color,
-                  fontWeight: FontWeight.bold,
+                  fontWeight:
+                      FontWeight.bold,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 10),
           Text(
-            conclusion,
+            _conclusion(detail),
             style: const TextStyle(
               fontSize: 15,
-              fontWeight: FontWeight.w600,
+              fontWeight:
+                  FontWeight.w600,
               height: 1.35,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Il ribasso e la convenienza sono misurati '
-            'separatamente: un titolo può essere sceso molto '
-            'e risultare ancora costoso.',
+            'Il ribasso e la convenienza '
+            'sono misurati separatamente: '
+            'un titolo può essere sceso '
+            'molto e risultare ancora costoso.',
             style: TextStyle(
-              color: Colors.grey.shade400,
+              color:
+                  Colors.grey.shade400,
               fontSize: 12,
               height: 1.4,
             ),
@@ -385,150 +421,230 @@ class _TickerDetailScreenState
     );
   }
 
-  Widget _buildAdvancedSection(
+  Widget _mainScores(
+    TickerDetail detail,
+  ) {
+    return Row(
+      children: [
+        Expanded(
+          child: ScoreBadge(
+            label: 'Anomalia',
+            value:
+                detail.anomalyScore,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: ScoreBadge(
+            label: 'Valutazione',
+            value:
+                detail.valuationScore,
+            color: _positiveScoreColor(
+              detail.valuationScore,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: ScoreBadge(
+            label: 'Affidabilità',
+            value:
+                detail.confidenceScore,
+            color: _positiveScoreColor(
+              detail.confidenceScore,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _advancedData(
     TickerDetail detail,
   ) {
     return Card(
       child: ExpansionTile(
-        tilePadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 3,
-        ),
-        childrenPadding: const EdgeInsets.fromLTRB(
-          14,
-          0,
-          14,
-          16,
-        ),
         leading: const Icon(
           Icons.analytics_outlined,
         ),
         title: const Text(
           'Dati e rischi avanzati',
           style: TextStyle(
-            fontWeight: FontWeight.w600,
+            fontWeight:
+                FontWeight.w600,
             fontSize: 15,
           ),
         ),
         subtitle: const Text(
-          'Valutazione, fondamentali e qualità dei dati',
+          'Valutazione, fondamentali '
+          'e qualità dei dati',
           style: TextStyle(
             fontSize: 11,
           ),
         ),
+        tilePadding:
+            const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 3,
+        ),
+        childrenPadding:
+            const EdgeInsets.fromLTRB(
+          14,
+          0,
+          14,
+          16,
+        ),
         children: [
-          _subsectionLabel('Punteggi'),
-          _dataRow(
+          _groupTitle('Punteggi'),
+          _metricRow(
             'Opportunità',
-            detail.opportunityScore,
+            _scoreValue(
+              detail.opportunityScore,
+            ),
           ),
-          _dataRow(
+          _metricRow(
             'Potenziale recupero',
-            detail.recoveryPotential,
+            _scoreValue(
+              detail.recoveryPotential,
+            ),
           ),
-          _dataRow(
+          _metricRow(
             'Qualità fondamentale',
-            detail.qualityScore,
+            _scoreValue(
+              detail.qualityScore,
+            ),
           ),
-          _dataRow(
+          _metricRow(
             'Rischio value trap',
-            detail.valueTrapRisk,
+            _scoreValue(
+              detail.valueTrapRisk,
+            ),
           ),
-          _dataRow(
+          _metricRow(
             'Rischio finanziario',
-            detail.financialRiskScore,
+            _scoreValue(
+              detail.financialRiskScore,
+            ),
           ),
-          _dataRow(
+          _metricRow(
             'Rischio deterioramento',
-            detail.distressRiskScore,
+            _scoreValue(
+              detail.distressRiskScore,
+            ),
           ),
-          _dataRow(
+          _metricRow(
             'Rischio diluizione',
-            detail.dilutionRiskScore,
+            _scoreValue(
+              detail.dilutionRiskScore,
+            ),
           ),
-          _dataRow(
-            'Rischio catalizzatore',
-            detail.catalystRisk,
+          _metricRow(
+            'Rischio evento',
+            _scoreValue(
+              detail.catalystRisk,
+            ),
           ),
           const Divider(height: 24),
-          _subsectionLabel('Valutazione'),
-          _dataRow(
+          _groupTitle('Valutazione'),
+          _metricRow(
             'P/E stimato',
-            detail.peRatio,
-            decimals: 1,
-            suffix: 'x',
+            _numberValue(
+              detail.peRatio,
+              suffix: 'x',
+            ),
           ),
-          _dataRow(
+          _metricRow(
             'Prezzo / ricavi',
-            detail.priceToSales,
-            decimals: 1,
-            suffix: 'x',
+            _numberValue(
+              detail.priceToSales,
+              suffix: 'x',
+            ),
           ),
-          _dataRow(
+          _metricRow(
             'Rendimento free cash flow',
-            detail.fcfYieldPct,
-            decimals: 1,
-            suffix: '%',
+            _numberValue(
+              detail.fcfYieldPct,
+              suffix: '%',
+            ),
           ),
-          _textRow(
+          _metricRow(
             'Capitalizzazione stimata',
-            _formatMarketCap(
+            _marketCapText(
               detail.marketCap,
             ),
           ),
           const Divider(height: 24),
-          _subsectionLabel('Fondamentali'),
-          _dataRow(
+          _groupTitle('Fondamentali'),
+          _metricRow(
             'Crescita ricavi',
-            detail.revenueGrowthPct,
-            decimals: 1,
-            suffix: '%',
+            _numberValue(
+              detail.revenueGrowthPct,
+              suffix: '%',
+            ),
           ),
-          _dataRow(
+          _metricRow(
             'Margine netto',
-            detail.netMarginPct,
-            decimals: 1,
-            suffix: '%',
+            _numberValue(
+              detail.netMarginPct,
+              suffix: '%',
+            ),
           ),
-          _dataRow(
+          _metricRow(
             'Margine free cash flow',
-            detail.fcfMarginPct,
-            decimals: 1,
-            suffix: '%',
+            _numberValue(
+              detail.fcfMarginPct,
+              suffix: '%',
+            ),
           ),
-          _dataRow(
+          _metricRow(
             'Passività / attivi',
-            detail.liabilitiesToAssets == null
-                ? null
-                : detail.liabilitiesToAssets! * 100,
-            decimals: 1,
-            suffix: '%',
+            _numberValue(
+              detail.liabilitiesToAssets ==
+                      null
+                  ? null
+                  : detail
+                          .liabilitiesToAssets! *
+                      100,
+              suffix: '%',
+            ),
           ),
           const Divider(height: 24),
-          _subsectionLabel('Evento rilevato'),
-          _textRow(
-            'Catalizzatore',
-            detail.catalystLabel,
+          _groupTitle(
+            'Evento rilevato',
           ),
-          if (detail.catalystExplanation.isNotEmpty)
+          _metricRow(
+            'Catalizzatore',
+            detail.catalystLabel.isEmpty
+                ? 'n/d'
+                : detail.catalystLabel,
+          ),
+          if (detail
+              .catalystExplanation
+              .isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(
+              padding:
+                  const EdgeInsets.only(
                 top: 8,
               ),
               child: Align(
-                alignment: Alignment.centerLeft,
+                alignment:
+                    Alignment.centerLeft,
                 child: Text(
-                  detail.catalystExplanation,
+                  detail
+                      .catalystExplanation,
                   style: TextStyle(
-                    color: Colors.grey.shade400,
+                    color: Colors
+                        .grey.shade400,
                     fontSize: 12,
                     height: 1.4,
                   ),
                 ),
               ),
             ),
-          if (detail.fundamentalsError != null &&
-              detail.fundamentalsError!.isNotEmpty) ...[
+          if (detail.fundamentalsError !=
+                  null &&
+              detail.fundamentalsError!
+                  .isNotEmpty) ...[
             const Divider(height: 24),
             Row(
               crossAxisAlignment:
@@ -536,18 +652,22 @@ class _TickerDetailScreenState
               children: [
                 const Icon(
                   Icons.info_outline,
-                  size: 16,
-                  color: Colors.orangeAccent,
+                  size: 17,
+                  color:
+                      Colors.orangeAccent,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Alcuni dati del provider non erano '
-                    'disponibili. Il motore ha usato i dati '
-                    'SEC disponibili e ha ridotto '
+                    'Alcuni dati del provider '
+                    'non erano disponibili. '
+                    'Il motore ha utilizzato '
+                    'i dati SEC disponibili '
+                    'e ha ridotto '
                     'l’affidabilità.',
                     style: TextStyle(
-                      color: Colors.grey.shade400,
+                      color: Colors
+                          .grey.shade400,
                       fontSize: 12,
                       height: 1.4,
                     ),
@@ -556,17 +676,21 @@ class _TickerDetailScreenState
               ],
             ),
           ],
-          if (detail.explanation.isNotEmpty) ...[
+          if (detail
+              .explanation
+              .isNotEmpty) ...[
             const Divider(height: 24),
-            _subsectionLabel(
+            _groupTitle(
               'Sintesi quantitativa',
             ),
             Align(
-              alignment: Alignment.centerLeft,
+              alignment:
+                  Alignment.centerLeft,
               child: Text(
                 detail.explanation,
                 style: TextStyle(
-                  color: Colors.grey.shade400,
+                  color:
+                      Colors.grey.shade400,
                   fontSize: 12,
                   height: 1.4,
                 ),
@@ -578,83 +702,14 @@ class _TickerDetailScreenState
     );
   }
 
-  String _buildConclusion(
-    TickerDetail detail,
-  ) {
-    final confidence =
-        detail.confidenceScore ?? 0;
-    final valuation =
-        detail.valuationScore ?? 0;
-    final opportunity =
-        detail.opportunityScore ?? 0;
-
-    if (confidence < 50) {
-      return 'Movimento da approfondire: '
-          'l’analisi è ancora incompleta.';
-    }
-
-    if (valuation < 50) {
-      return 'Il prezzo è sceso, ma la valutazione '
-          'può essere ancora elevata.';
-    }
-
-    if (opportunity >= 70) {
-      return 'Il movimento presenta segnali interessanti, '
-          'con dati sufficientemente completi.';
-    }
-
-    if (opportunity >= 55) {
-      return 'Il movimento merita monitoraggio, '
-          'ma non offre ancora un segnale forte.';
-    }
-
-    return 'Il ribasso è visibile, ma i dati attuali '
-        'non indicano un’anomalia prioritaria.';
-  }
-
-  Color _valuationColor(
-    double? value,
-  ) {
-    if (value == null) {
-      return Colors.grey;
-    }
-
-    if (value >= 70) {
-      return Colors.greenAccent;
-    }
-
-    if (value >= 50) {
-      return Colors.amber;
-    }
-
-    return Colors.orangeAccent;
-  }
-
-  Color _confidenceColor(
-    double? value,
-  ) {
-    if (value == null) {
-      return Colors.grey;
-    }
-
-    if (value >= 70) {
-      return Colors.greenAccent;
-    }
-
-    if (value >= 50) {
-      return Colors.amber;
-    }
-
-    return Colors.orangeAccent;
-  }
-
   Widget _sectionTitle(
     String title,
     IconData icon,
     Color color,
   ) {
     return Padding(
-      padding: const EdgeInsets.only(
+      padding:
+          const EdgeInsets.only(
         bottom: 10,
       ),
       child: Row(
@@ -669,7 +724,8 @@ class _TickerDetailScreenState
             child: Text(
               title,
               style: const TextStyle(
-                fontWeight: FontWeight.w600,
+                fontWeight:
+                    FontWeight.w600,
                 fontSize: 15,
               ),
             ),
@@ -679,12 +735,13 @@ class _TickerDetailScreenState
     );
   }
 
-  Widget _bulletCard(
+  Widget _bullet(
     String text,
-    Color dotColor,
+    Color color,
   ) {
     return Padding(
-      padding: const EdgeInsets.only(
+      padding:
+          const EdgeInsets.only(
         bottom: 9,
       ),
       child: Row(
@@ -692,14 +749,15 @@ class _TickerDetailScreenState
             CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(
+            padding:
+                const EdgeInsets.only(
               top: 6,
             ),
             child: Container(
               width: 6,
               height: 6,
               decoration: BoxDecoration(
-                color: dotColor,
+                color: color,
                 shape: BoxShape.circle,
               ),
             ),
@@ -719,34 +777,39 @@ class _TickerDetailScreenState
     );
   }
 
-  Widget _emptyExplanation(
+  Widget _emptyText(
     String text,
   ) {
     return Text(
       text,
       style: TextStyle(
-        color: Colors.grey.shade500,
+        color:
+            Colors.grey.shade500,
         fontSize: 13,
       ),
     );
   }
 
-  Widget _subsectionLabel(
-    String text,
+  Widget _groupTitle(
+    String title,
   ) {
     return Align(
-      alignment: Alignment.centerLeft,
+      alignment:
+          Alignment.centerLeft,
       child: Padding(
-        padding: const EdgeInsets.only(
+        padding:
+            const EdgeInsets.only(
           top: 4,
           bottom: 7,
         ),
         child: Text(
-          text.toUpperCase(),
+          title.toUpperCase(),
           style: TextStyle(
-            color: Colors.grey.shade500,
+            color:
+                Colors.grey.shade500,
             fontSize: 10,
-            fontWeight: FontWeight.bold,
+            fontWeight:
+                FontWeight.bold,
             letterSpacing: 0.8,
           ),
         ),
@@ -754,29 +817,13 @@ class _TickerDetailScreenState
     );
   }
 
-  Widget _dataRow(
-    String label,
-    double? value, {
-    int decimals = 0,
-    String suffix = '/100',
-  }) {
-    final formatted = value == null
-        ? 'n/d'
-        : '${value.toStringAsFixed(decimals)}'
-            '$suffix';
-
-    return _textRow(
-      label,
-      formatted,
-    );
-  }
-
-  Widget _textRow(
+  Widget _metricRow(
     String label,
     String value,
   ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         vertical: 5,
       ),
       child: Row(
@@ -787,18 +834,23 @@ class _TickerDetailScreenState
             child: Text(
               label,
               style: TextStyle(
-                color: Colors.grey.shade400,
+                color: Colors
+                    .grey.shade400,
                 fontSize: 13,
               ),
             ),
           ),
           const SizedBox(width: 12),
-          Text(
-            value,
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
+          Flexible(
+            child: Text(
+              value,
+              textAlign:
+                  TextAlign.right,
+              style: const TextStyle(
+                fontWeight:
+                    FontWeight.w600,
+                fontSize: 13,
+              ),
             ),
           ),
         ],
@@ -806,4 +858,129 @@ class _TickerDetailScreenState
     );
   }
 
-  String _f
+  String _conclusion(
+    TickerDetail detail,
+  ) {
+    final confidence =
+        detail.confidenceScore ?? 0;
+
+    final valuation =
+        detail.valuationScore ?? 0;
+
+    final opportunity =
+        detail.opportunityScore ?? 0;
+
+    if (confidence < 50) {
+      return 'Movimento da approfondire: '
+          'l’analisi è ancora incompleta.';
+    }
+
+    if (valuation < 50) {
+      return 'Il prezzo è sceso, '
+          'ma la valutazione può '
+          'essere ancora elevata.';
+    }
+
+    if (opportunity >= 70) {
+      return 'Il movimento presenta '
+          'segnali interessanti con dati '
+          'sufficientemente completi.';
+    }
+
+    if (opportunity >= 55) {
+      return 'Il movimento merita '
+          'monitoraggio, ma non offre '
+          'ancora un segnale forte.';
+    }
+
+    return 'Il ribasso è visibile, '
+        'ma i dati attuali non indicano '
+        'un’anomalia prioritaria.';
+  }
+
+  Color _positiveScoreColor(
+    double? value,
+  ) {
+    if (value == null) {
+      return Colors.grey;
+    }
+
+    if (value >= 70) {
+      return Colors.greenAccent;
+    }
+
+    if (value >= 50) {
+      return Colors.amber;
+    }
+
+    return Colors.orangeAccent;
+  }
+
+  String _scoreText(
+    double? value,
+  ) {
+    if (value == null) {
+      return 'n/d';
+    }
+
+    return value.toStringAsFixed(0);
+  }
+
+  String _scoreValue(
+    double? value,
+  ) {
+    if (value == null) {
+      return 'n/d';
+    }
+
+    return '${value.toStringAsFixed(0)}/100';
+  }
+
+  String _numberValue(
+    double? value, {
+    String suffix = '',
+  }) {
+    if (value == null) {
+      return 'n/d';
+    }
+
+    return '${value.toStringAsFixed(1)}$suffix';
+  }
+
+  String _priceText(
+    double? value,
+  ) {
+    if (value == null) {
+      return 'n/d';
+    }
+
+    return '\$${value.toStringAsFixed(2)}';
+  }
+
+  String _marketCapText(
+    double? value,
+  ) {
+    if (value == null) {
+      return 'n/d';
+    }
+
+    if (value >= 1000000000) {
+      final billions =
+          value / 1000000000;
+
+      final decimals =
+          billions >= 100 ? 0 : 1;
+
+      return '\$${billions.toStringAsFixed(decimals)} mld';
+    }
+
+    if (value >= 1000000) {
+      final millions =
+          value / 1000000;
+
+      return '\$${millions.toStringAsFixed(0)} mln';
+    }
+
+    return '\$${value.toStringAsFixed(0)}';
+  }
+}
