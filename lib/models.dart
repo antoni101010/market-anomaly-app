@@ -1,5 +1,5 @@
-/// Modelli dati che rispecchiano le risposte JSON del backend Market Anomaly.
-/// Ogni campo è nullable dove il motore Python può restituire None/NaN.
+/// Modelli dati delle risposte JSON
+/// del backend Market Anomaly.
 library;
 
 class DashboardStats {
@@ -15,13 +15,30 @@ class DashboardStats {
     this.maxAnomaly,
   });
 
-  factory DashboardStats.fromJson(Map<String, dynamic> j) => DashboardStats(
-        analyzed: (j['analyzed'] ?? 0) as int,
-        candidates: (j['candidates'] ?? 0) as int,
-        maxOpportunity: (j['max_opportunity'] as num?)?.toDouble(),
-        maxAnomaly: (j['max_anomaly'] as num?)?.toDouble(),
-      );
+  factory DashboardStats.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return DashboardStats(
+      analyzed: (
+        json['analyzed']
+        ?? 0
+      ) as int,
+      candidates: (
+        json['candidates']
+        ?? 0
+      ) as int,
+      maxOpportunity: (
+        json['max_opportunity']
+        as num?
+      )?.toDouble(),
+      maxAnomaly: (
+        json['max_anomaly']
+        as num?
+      )?.toDouble(),
+    );
+  }
 }
+
 
 class AnomalyRow {
   final String ticker;
@@ -31,6 +48,11 @@ class AnomalyRow {
   final double? anomalyScore;
   final double? opportunityScore;
   final double? valueTrapRisk;
+  final double? valuationScore;
+  final double? financialRiskScore;
+  final double? distressRiskScore;
+  final double? dilutionRiskScore;
+  final double? confidenceScore;
   final String catalystLabel;
   final String classification;
   final bool inWatchlist;
@@ -38,29 +60,83 @@ class AnomalyRow {
   AnomalyRow({
     required this.ticker,
     required this.company,
+    required this.catalystLabel,
+    required this.classification,
+    required this.inWatchlist,
     this.price,
     this.drawdown52wPct,
     this.anomalyScore,
     this.opportunityScore,
     this.valueTrapRisk,
-    required this.catalystLabel,
-    required this.classification,
-    required this.inWatchlist,
+    this.valuationScore,
+    this.financialRiskScore,
+    this.distressRiskScore,
+    this.dilutionRiskScore,
+    this.confidenceScore,
   });
 
-  factory AnomalyRow.fromJson(Map<String, dynamic> j) => AnomalyRow(
-        ticker: j['ticker'] ?? '',
-        company: j['company'] ?? '',
-        price: (j['price'] as num?)?.toDouble(),
-        drawdown52wPct: (j['drawdown_52w_pct'] as num?)?.toDouble(),
-        anomalyScore: (j['anomaly_score'] as num?)?.toDouble(),
-        opportunityScore: (j['opportunity_score'] as num?)?.toDouble(),
-        valueTrapRisk: (j['value_trap_risk'] as num?)?.toDouble(),
-        catalystLabel: j['catalyst_label'] ?? '',
-        classification: j['classification'] ?? '',
-        inWatchlist: j['in_watchlist'] == true,
-      );
+  factory AnomalyRow.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return AnomalyRow(
+      ticker: json['ticker'] ?? '',
+      company: json['company'] ?? '',
+      price: (
+        json['price']
+        as num?
+      )?.toDouble(),
+      drawdown52wPct: (
+        json['drawdown_52w_pct']
+        as num?
+      )?.toDouble(),
+      anomalyScore: (
+        json['anomaly_score']
+        as num?
+      )?.toDouble(),
+      opportunityScore: (
+        json['opportunity_score']
+        as num?
+      )?.toDouble(),
+      valueTrapRisk: (
+        json['value_trap_risk']
+        as num?
+      )?.toDouble(),
+      valuationScore: (
+        json['valuation_score']
+        as num?
+      )?.toDouble(),
+      financialRiskScore: (
+        json['financial_risk_score']
+        as num?
+      )?.toDouble(),
+      distressRiskScore: (
+        json['distress_risk_score']
+        as num?
+      )?.toDouble(),
+      dilutionRiskScore: (
+        json['dilution_risk_score']
+        as num?
+      )?.toDouble(),
+      confidenceScore: (
+        json['confidence_score']
+        as num?
+      )?.toDouble(),
+      catalystLabel: (
+        json['catalyst_label']
+        ?? ''
+      ),
+      classification: (
+        json['classification']
+        ?? ''
+      ),
+      inWatchlist: (
+        json['in_watchlist']
+        == true
+      ),
+    );
+  }
 }
+
 
 class DashboardData {
   final String? scanTime;
@@ -75,15 +151,30 @@ class DashboardData {
     required this.stats,
   });
 
-  factory DashboardData.fromJson(Map<String, dynamic> j) => DashboardData(
-        scanTime: j['scan_time'],
-        marketMode: j['market_mode'],
-        topAnomalies: ((j['top_anomalies'] ?? []) as List)
-            .map((e) => AnomalyRow.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        stats: DashboardStats.fromJson(j['stats'] ?? {}),
-      );
+  factory DashboardData.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return DashboardData(
+      scanTime: json['scan_time'],
+      marketMode: json['market_mode'],
+      topAnomalies: (
+        (
+          json['top_anomalies']
+          ?? []
+        ) as List
+      ).map(
+        (item) => AnomalyRow.fromJson(
+          item as Map<String, dynamic>,
+        ),
+      ).toList(),
+      stats: DashboardStats.fromJson(
+        json['stats']
+        ?? {},
+      ),
+    );
+  }
 }
+
 
 class TickerNarrative {
   final String classificationLabel;
@@ -98,47 +189,176 @@ class TickerNarrative {
     required this.whyNot,
   });
 
-  factory TickerNarrative.fromJson(Map<String, dynamic> j) => TickerNarrative(
-        classificationLabel: (j['classification']?['label']) ?? '',
-        classificationScore:
-            ((j['classification']?['score']) as num?)?.toDouble() ?? 0.0,
-        whyAnomaly: ((j['why_anomaly'] ?? []) as List).map((e) => e.toString()).toList(),
-        whyNot: ((j['why_not'] ?? []) as List).map((e) => e.toString()).toList(),
-      );
+  factory TickerNarrative.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return TickerNarrative(
+      classificationLabel: (
+        json['classification']
+        ?['label']
+        ?? ''
+      ),
+      classificationScore: (
+        json['classification']
+        ?['score']
+        as num?
+      )?.toDouble()
+          ?? 0.0,
+      whyAnomaly: (
+        (
+          json['why_anomaly']
+          ?? []
+        ) as List
+      ).map(
+        (item) => item.toString(),
+      ).toList(),
+      whyNot: (
+        (
+          json['why_not']
+          ?? []
+        ) as List
+      ).map(
+        (item) => item.toString(),
+      ).toList(),
+    );
+  }
 }
+
 
 class TickerDetail {
   final Map<String, dynamic> raw;
   final TickerNarrative narrative;
   final bool inWatchlist;
 
-  TickerDetail({required this.raw, required this.narrative, required this.inWatchlist});
+  TickerDetail({
+    required this.raw,
+    required this.narrative,
+    required this.inWatchlist,
+  });
 
-  factory TickerDetail.fromJson(Map<String, dynamic> j) => TickerDetail(
-        raw: j,
-        narrative: TickerNarrative.fromJson(j['narrative'] ?? {}),
-        inWatchlist: j['in_watchlist'] == true,
-      );
+  factory TickerDetail.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return TickerDetail(
+      raw: json,
+      narrative: TickerNarrative.fromJson(
+        json['narrative']
+        ?? {},
+      ),
+      inWatchlist: (
+        json['in_watchlist']
+        == true
+      ),
+    );
+  }
 
-  String get ticker => raw['ticker'] ?? '';
-  String get company => raw['company'] ?? '';
-  double? get lastClose => (raw['last_close'] as num?)?.toDouble();
-  double? get drawdown52wPct => (raw['drawdown_52w_pct'] as num?)?.toDouble();
-  double? get anomalyScore => (raw['anomaly_score'] as num?)?.toDouble();
-  double? get opportunityScore => (raw['opportunity_score'] as num?)?.toDouble();
-  double? get valueTrapRisk => (raw['value_trap_risk'] as num?)?.toDouble();
-  double? get catalystRisk => (raw['catalyst_risk'] as num?)?.toDouble();
-  double? get qualityScore => (raw['quality_score'] as num?)?.toDouble();
-  double? get revenueGrowthPct => (raw['revenue_growth_pct'] as num?)?.toDouble();
-  double? get netMarginPct => (raw['net_margin_pct'] as num?)?.toDouble();
-  double? get liabilitiesToAssets => (raw['liabilities_to_assets'] as num?)?.toDouble();
-  double? get fcfMarginPct => (raw['fcf_margin_pct'] as num?)?.toDouble();
-  double? get recoveryPotential => (raw['recovery_potential'] as num?)?.toDouble();
-  String get catalystLabel => raw['catalyst_label'] ?? '';
-  String get catalystExplanation => raw['catalyst_explanation'] ?? '';
-  String get explanation => raw['explanation'] ?? '';
-  String get sectorEtf => raw['sector_etf'] ?? '';
+  String get ticker =>
+      raw['ticker'] ?? '';
+
+  String get company =>
+      raw['company'] ?? '';
+
+  double? get lastClose =>
+      (raw['last_close'] as num?)
+          ?.toDouble();
+
+  double? get drawdown52wPct =>
+      (raw['drawdown_52w_pct'] as num?)
+          ?.toDouble();
+
+  double? get anomalyScore =>
+      (raw['anomaly_score'] as num?)
+          ?.toDouble();
+
+  double? get opportunityScore =>
+      (raw['opportunity_score'] as num?)
+          ?.toDouble();
+
+  double? get valueTrapRisk =>
+      (raw['value_trap_risk'] as num?)
+          ?.toDouble();
+
+  double? get catalystRisk =>
+      (raw['catalyst_risk'] as num?)
+          ?.toDouble();
+
+  double? get qualityScore =>
+      (raw['quality_score'] as num?)
+          ?.toDouble();
+
+  double? get valuationScore =>
+      (raw['valuation_score'] as num?)
+          ?.toDouble();
+
+  double? get financialRiskScore =>
+      (raw['financial_risk_score'] as num?)
+          ?.toDouble();
+
+  double? get distressRiskScore =>
+      (raw['distress_risk_score'] as num?)
+          ?.toDouble();
+
+  double? get dilutionRiskScore =>
+      (raw['dilution_risk_score'] as num?)
+          ?.toDouble();
+
+  double? get confidenceScore =>
+      (raw['confidence_score'] as num?)
+          ?.toDouble();
+
+  double? get peRatio =>
+      (raw['pe_ratio'] as num?)
+          ?.toDouble();
+
+  double? get priceToSales =>
+      (raw['price_to_sales'] as num?)
+          ?.toDouble();
+
+  double? get fcfYieldPct =>
+      (raw['fcf_yield_pct'] as num?)
+          ?.toDouble();
+
+  double? get marketCap =>
+      (raw['market_cap'] as num?)
+          ?.toDouble();
+
+  double? get revenueGrowthPct =>
+      (raw['revenue_growth_pct'] as num?)
+          ?.toDouble();
+
+  double? get netMarginPct =>
+      (raw['net_margin_pct'] as num?)
+          ?.toDouble();
+
+  double? get liabilitiesToAssets =>
+      (raw['liabilities_to_assets'] as num?)
+          ?.toDouble();
+
+  double? get fcfMarginPct =>
+      (raw['fcf_margin_pct'] as num?)
+          ?.toDouble();
+
+  double? get recoveryPotential =>
+      (raw['recovery_potential'] as num?)
+          ?.toDouble();
+
+  String? get fundamentalsError =>
+      raw['fundamentals_error']
+          ?.toString();
+
+  String get catalystLabel =>
+      raw['catalyst_label'] ?? '';
+
+  String get catalystExplanation =>
+      raw['catalyst_explanation'] ?? '';
+
+  String get explanation =>
+      raw['explanation'] ?? '';
+
+  String get sectorEtf =>
+      raw['sector_etf'] ?? '';
 }
+
 
 class WatchlistItem {
   final String ticker;
@@ -165,19 +385,45 @@ class WatchlistItem {
     this.opportunityScoreNow,
   });
 
-  factory WatchlistItem.fromJson(Map<String, dynamic> j) => WatchlistItem(
-        ticker: j['ticker'] ?? '',
-        company: j['company'],
-        addedAt: j['added_at'],
-        priceAtAdd: (j['price_at_add'] as num?)?.toDouble(),
-        currentPrice: (j['current_price'] as num?)?.toDouble(),
-        performancePct: (j['performance_pct'] as num?)?.toDouble(),
-        anomalyScoreAtAdd: (j['anomaly_score_at_add'] as num?)?.toDouble(),
-        anomalyScoreNow: (j['anomaly_score_now'] as num?)?.toDouble(),
-        opportunityScoreAtAdd: (j['opportunity_score_at_add'] as num?)?.toDouble(),
-        opportunityScoreNow: (j['opportunity_score_now'] as num?)?.toDouble(),
-      );
+  factory WatchlistItem.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return WatchlistItem(
+      ticker: json['ticker'] ?? '',
+      company: json['company'],
+      addedAt: json['added_at'],
+      priceAtAdd: (
+        json['price_at_add']
+        as num?
+      )?.toDouble(),
+      currentPrice: (
+        json['current_price']
+        as num?
+      )?.toDouble(),
+      performancePct: (
+        json['performance_pct']
+        as num?
+      )?.toDouble(),
+      anomalyScoreAtAdd: (
+        json['anomaly_score_at_add']
+        as num?
+      )?.toDouble(),
+      anomalyScoreNow: (
+        json['anomaly_score_now']
+        as num?
+      )?.toDouble(),
+      opportunityScoreAtAdd: (
+        json['opportunity_score_at_add']
+        as num?
+      )?.toDouble(),
+      opportunityScoreNow: (
+        json['opportunity_score_now']
+        as num?
+      )?.toDouble(),
+    );
+  }
 }
+
 
 class HistoryEntry {
   final String signalTime;
@@ -204,16 +450,47 @@ class HistoryEntry {
     this.qualityScore,
   });
 
-  factory HistoryEntry.fromJson(Map<String, dynamic> j) => HistoryEntry(
-        signalTime: j['signal_time'] ?? '',
-        ticker: j['ticker'] ?? '',
-        company: j['company'],
-        price: (j['price'] as num?)?.toDouble(),
-        anomalyScore: (j['anomaly_score'] as num?)?.toDouble(),
-        opportunityScore: (j['opportunity_score'] as num?)?.toDouble(),
-        recoveryPotential: (j['recovery_potential'] as num?)?.toDouble(),
-        valueTrapRisk: (j['value_trap_risk'] as num?)?.toDouble(),
-        catalystRisk: (j['catalyst_risk'] as num?)?.toDouble(),
-        qualityScore: (j['quality_score'] as num?)?.toDouble(),
-      );
+  factory HistoryEntry.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return HistoryEntry(
+      signalTime: (
+        json['signal_time']
+        ?? ''
+      ),
+      ticker: (
+        json['ticker']
+        ?? ''
+      ),
+      company: json['company'],
+      price: (
+        json['price']
+        as num?
+      )?.toDouble(),
+      anomalyScore: (
+        json['anomaly_score']
+        as num?
+      )?.toDouble(),
+      opportunityScore: (
+        json['opportunity_score']
+        as num?
+      )?.toDouble(),
+      recoveryPotential: (
+        json['recovery_potential']
+        as num?
+      )?.toDouble(),
+      valueTrapRisk: (
+        json['value_trap_risk']
+        as num?
+      )?.toDouble(),
+      catalystRisk: (
+        json['catalyst_risk']
+        as num?
+      )?.toDouble(),
+      qualityScore: (
+        json['quality_score']
+        as num?
+      )?.toDouble(),
+    );
+  }
 }
