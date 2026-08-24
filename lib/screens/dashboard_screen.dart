@@ -1,6 +1,8 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
 import '../api_client.dart';
 import '../models.dart';
 import '../theme.dart';
@@ -8,13 +10,19 @@ import 'ticker_detail_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final VoidCallback onOpenSettings;
-  const DashboardScreen({super.key, required this.onOpenSettings});
+
+  const DashboardScreen({
+    super.key,
+    required this.onOpenSettings,
+  });
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
+  State<DashboardScreen> createState() =>
+      _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState
+    extends State<DashboardScreen> {
   DashboardData? _data;
   bool _loading = false;
   bool _scanning = false;
@@ -36,86 +44,158 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _load() async {
     if (!ApiClient.instance.isConfigured) {
-      setState(() => _error = 'not_configured');
+      if (mounted) {
+        setState(() {
+          _error = 'not_configured';
+        });
+      }
       return;
     }
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+
     try {
-      final d = await ApiClient.instance.getDashboard();
-      setState(() => _data = d);
-    } catch (e) {
-      setState(() => _error = e.toString());
+      final data =
+          await ApiClient.instance.getDashboard();
+
+      if (!mounted) return;
+
+      setState(() {
+        _data = data;
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _error = error.toString();
+      });
     } finally {
-      setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
     }
   }
 
   Future<void> _runScan() async {
+    if (_scanning) return;
+
     setState(() {
       _scanning = true;
       _scanMessage = 'Avvio scansione...';
     });
+
     try {
-      final result = await ApiClient.instance.triggerScan(limit: 100);
+      final result = await ApiClient.instance
+          .triggerScan(limit: 100);
+
+      if (!mounted) return;
+
       if (result['ok'] != true) {
-        // Una scansione era già in corso sul server: iniziamo comunque a monitorarla.
-        setState(() => _scanMessage = result['message'] ?? 'Scansione già in corso, la seguo...');
+        setState(() {
+          _scanMessage =
+              result['message']?.toString() ??
+                  'Scansione già in corso...';
+        });
+      } else {
+        setState(() {
+          _scanMessage =
+              result['message']?.toString() ??
+                  'Scansione in corso...';
+        });
       }
+
       _pollTimer?.cancel();
-      _pollTimer = Timer.periodic(const Duration(seconds: 5), (_) => _pollScanStatus());
-    } catch (e) {
+      _pollTimer = Timer.periodic(
+        const Duration(seconds: 5),
+        (_) => _pollScanStatus(),
+      );
+
+      await _pollScanStatus();
+    } catch (error) {
+      if (!mounted) return;
+
       setState(() {
         _scanning = false;
         _scanMessage = '';
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Errore avvio scansione: $e')));
-      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Errore avvio scansione: $error',
+          ),
+        ),
+      );
     }
   }
 
   Future<void> _pollScanStatus() async {
     try {
-      final status = await ApiClient.instance.getScanStatus();
-      final st = status['status'] as String? ?? 'idle';
+      final status =
+          await ApiClient.instance.getScanStatus();
+      final scanStatus =
+          status['status']?.toString() ?? 'idle';
 
-      if (st == 'running') {
-        setState(() => _scanMessage = status['message'] ?? 'Scansione in corso...');
-        return; // continua a controllare
+      if (!mounted) return;
+
+      if (scanStatus == 'running') {
+        setState(() {
+          _scanMessage =
+              status['message']?.toString() ??
+                  'Scansione in corso...';
+        });
+        return;
       }
 
-      // Finita (done o error): fermiamo il timer.
       _pollTimer?.cancel();
+
       setState(() {
         _scanning = false;
         _scanMessage = '';
       });
 
-      if (st == 'error') {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Scansione fallita: ${status['message'] ?? 'errore sconosciuto'}')),
-          );
-        }
-      } else {
-        await _load(); // st == 'done' → ricarica la dashboard con i nuovi dati
+      if (scanStatus == 'error') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Scansione fallita: '
+              '${status['message'] ?? 'errore sconosciuto'}',
+            ),
+          ),
+        );
+        return;
       }
-    } catch (e) {
-      // Errore temporaneo di rete durante il polling: non interrompiamo,
-      // riproveremo al prossimo tick del timer.
+
+      if (scanStatus == 'done') {
+        await _load();
+      }
+    } catch (_) {
+      // Un errore temporaneo di rete non interrompe
+      // il controllo. Il timer riproverà.
     }
   }
 
-  String _formatScanTime(String? iso) {
-    if (iso == null) return 'mai eseguita';
+  String _formatScanTime(String? isoDate) {
+    if (isoDate == null) {
+      return 'mai eseguita';
+    }
+
     try {
-      final dt = DateTime.parse(iso).toLocal();
-      return DateFormat('dd/MM HH:mm').format(dt);
+      final date =
+          DateTime.parse(isoDate).toLocal();
+
+      return DateFormat(
+        'dd/MM/yyyy HH:mm',
+      ).format(date);
     } catch (_) {
-      return iso;
+      return isoDate;
     }
   }
 
@@ -126,7 +206,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         title: const Text('Market Anomaly'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Impostazioni',
+            icon: const Icon(
+              Icons.settings_outlined,
+            ),
             onPressed: widget.onOpenSettings,
           ),
         ],
@@ -135,32 +218,55 @@ class _DashboardScreenState extends State<DashboardScreen> {
         onRefresh: _load,
         child: _buildBody(),
       ),
-      floatingActionButton: ApiClient.instance.isConfigured
-          ? FloatingActionButton.extended(
-              onPressed: _scanning ? null : _runScan,
-              icon: _scanning
-                  ? const SizedBox(
-                      height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                  : const Icon(Icons.refresh),
-              label: Text(_scanning ? 'Scansiono...' : 'Aggiorna'),
-            )
-          : null,
+      floatingActionButton:
+          ApiClient.instance.isConfigured
+              ? FloatingActionButton.extended(
+                  onPressed:
+                      _scanning ? null : _runScan,
+                  icon: _scanning
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child:
+                              CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.black,
+                          ),
+                        )
+                      : const Icon(Icons.refresh),
+                  label: Text(
+                    _scanning
+                        ? 'Scansione...'
+                        : 'Aggiorna',
+                  ),
+                )
+              : null,
     );
   }
 
   Widget _buildBody() {
     if (_error == 'not_configured') {
-      return EmptyState(
-        icon: Icons.dns_outlined,
-        title: 'Configura il server',
-        subtitle: 'Vai in Impostazioni e inserisci l\'indirizzo del tuo backend per iniziare.',
-        actionLabel: 'Vai alle Impostazioni',
-        onAction: widget.onOpenSettings,
+      return ListView(
+        physics:
+            const AlwaysScrollableScrollPhysics(),
+        children: [
+          EmptyState(
+            icon: Icons.dns_outlined,
+            title: 'Configura il server',
+            subtitle:
+                'Apri le impostazioni e inserisci '
+                'l’indirizzo del backend.',
+            actionLabel: 'Apri impostazioni',
+            onAction: widget.onOpenSettings,
+          ),
+        ],
       );
     }
+
     if (_error != null) {
       return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
+        physics:
+            const AlwaysScrollableScrollPhysics(),
         children: [
           EmptyState(
             icon: Icons.cloud_off_outlined,
@@ -172,20 +278,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       );
     }
+
     if (_loading && _data == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
     }
+
     final data = _data;
-    if (data == null) return const SizedBox.shrink();
+
+    if (data == null) {
+      return const SizedBox.shrink();
+    }
 
     if (data.scanTime == null && !_scanning) {
       return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
+        physics:
+            const AlwaysScrollableScrollPhysics(),
         children: [
           EmptyState(
             icon: Icons.query_stats_outlined,
-            title: 'Nessuna scansione ancora eseguita',
-            subtitle: 'Tocca "Aggiorna" per analizzare il mercato.',
+            title: 'Nessuna scansione disponibile',
+            subtitle:
+                'Tocca “Scansiona ora” per analizzare '
+                'il mercato.',
             actionLabel: 'Scansiona ora',
             onAction: _runScan,
           ),
@@ -194,143 +310,422 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(
+        16,
+        8,
+        16,
+        96,
+      ),
+      physics:
+          const AlwaysScrollableScrollPhysics(),
       children: [
-        if (_scanning)
-          Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.blue.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                const SizedBox(
-                  height: 18, width: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    _scanMessage.isEmpty ? 'Scansione in corso sul server...' : _scanMessage,
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Ultima scansione: ${_formatScanTime(data.scanTime)}',
-                style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                data.marketMode == 'demo' ? 'DEMO' : 'LIVE',
-                style: const TextStyle(fontSize: 11, color: Colors.greenAccent, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ],
-        ),
+        if (_scanning) _buildScanningBanner(),
+        _buildScanHeader(data),
         const SizedBox(height: 16),
         Row(
           children: [
-            Expanded(child: _statTile('Analizzati', data.stats.analyzed.toString())),
-            const SizedBox(width: 10),
-            Expanded(child: _statTile('Candidati', data.stats.candidates.toString())),
-            const SizedBox(width: 10),
             Expanded(
-                child: _statTile(
-                    'Opportunity max', data.stats.maxOpportunity?.toStringAsFixed(0) ?? '-')),
+              child: _statTile(
+                'Analizzati',
+                data.stats.analyzed.toString(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _statTile(
+                'Risultati',
+                data.stats.candidates.toString(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _statTile(
+                'Migliore',
+                data.stats.maxOpportunity
+                        ?.toStringAsFixed(0) ??
+                    'n/d',
+              ),
+            ),
           ],
         ),
-        const SizedBox(height: 20),
-        Text('Top anomalie', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 22),
+        Text(
+          'Movimenti rilevati',
+          style:
+              Theme.of(context).textTheme.titleLarge,
+        ),
+        const SizedBox(height: 5),
+        Text(
+          'Ordinati per punteggio di opportunità. '
+          'Un forte ribasso non significa automaticamente '
+          'che il titolo sia conveniente.',
+          style: TextStyle(
+            color: Colors.grey.shade500,
+            fontSize: 12,
+            height: 1.4,
+          ),
+        ),
         const SizedBox(height: 10),
         if (data.topAnomalies.isEmpty)
-          EmptyState(
+          const EmptyState(
             icon: Icons.search_off,
-            title: 'Nessun candidato con i filtri attuali',
-            subtitle: 'Prova ad aggiornare i dati o attendi la prossima scansione.',
+            title: 'Nessun movimento rilevato',
+            subtitle:
+                'Aggiorna i dati oppure attendi '
+                'la prossima scansione.',
           )
         else
-          ...data.topAnomalies.asMap().entries.map((e) => _anomalyCard(e.key + 1, e.value)),
+          ...data.topAnomalies
+              .asMap()
+              .entries
+              .map(
+                (entry) => _anomalyCard(
+                  entry.key + 1,
+                  entry.value,
+                ),
+              ),
       ],
     );
   }
 
-  Widget _statTile(String label, String value) {
+  Widget _buildScanningBanner() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF161B22),
-        borderRadius: BorderRadius.circular(12),
+      margin: const EdgeInsets.only(
+        bottom: 16,
       ),
-      child: Column(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.blue.withValues(
+          alpha: 0.12,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.blue.withValues(
+            alpha: 0.2,
+          ),
+        ),
+      ),
+      child: Row(
         children: [
-          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 2),
-          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+          const SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _scanMessage.isEmpty
+                  ? 'Scansione in corso sul server...'
+                  : _scanMessage,
+              style: const TextStyle(
+                fontSize: 13,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _anomalyCard(int rank, AnomalyRow row) {
-    final color = classificationColor(row.classification);
+  Widget _buildScanHeader(
+    DashboardData data,
+  ) {
+    final isDemo =
+        data.marketMode == 'demo';
+
+    final modeColor = isDemo
+        ? Colors.orangeAccent
+        : Colors.greenAccent;
+
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            'Ultima scansione: '
+            '${_formatScanTime(data.scanTime)}',
+            style: TextStyle(
+              color: Colors.grey.shade400,
+              fontSize: 12,
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 4,
+          ),
+          decoration: BoxDecoration(
+            color: modeColor.withValues(
+              alpha: 0.15,
+            ),
+            borderRadius:
+                BorderRadius.circular(6),
+          ),
+          child: Text(
+            isDemo ? 'DEMO' : 'LIVE',
+            style: TextStyle(
+              fontSize: 10,
+              color: modeColor,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _statTile(
+    String label,
+    String value,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        vertical: 12,
+        horizontal: 8,
+      ),
+      decoration: BoxDecoration(
+        color: const Color(0xFF161B22),
+        borderRadius:
+            BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.grey.shade500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _anomalyCard(
+    int rank,
+    AnomalyRow row,
+  ) {
+    final color =
+        classificationColor(
+      row.classification,
+    );
+
+    final note = _resultNote(row);
+
     return Card(
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => TickerDetailScreen(ticker: row.ticker)),
+        borderRadius:
+            BorderRadius.circular(14),
+        onTap: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) =>
+                  TickerDetailScreen(
+                ticker: row.ticker,
+              ),
+            ),
           );
+
+          if (mounted) {
+            _load();
+          }
         },
         child: Padding(
           padding: const EdgeInsets.all(14),
-          child: Row(
+          child: Column(
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
-                radius: 16,
-                backgroundColor: color.withValues(alpha: 0.15),
-                child: Text('$rank', style: TextStyle(color: color, fontWeight: FontWeight.bold)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              Row(
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor:
+                        color.withValues(
+                      alpha: 0.15,
+                    ),
+                    child: Text(
+                      '$rank',
+                      style: TextStyle(
+                        color: color,
+                        fontWeight:
+                            FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
                       children: [
-                        Text(row.ticker, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                        const SizedBox(width: 8),
-                        if (row.inWatchlist) Icon(Icons.star, size: 14, color: Colors.amber.shade400),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                row.ticker,
+                                overflow:
+                                    TextOverflow
+                                        .ellipsis,
+                                style:
+                                    const TextStyle(
+                                  fontWeight:
+                                      FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                            if (row.inWatchlist) ...[
+                              const SizedBox(
+                                width: 6,
+                              ),
+                              Icon(
+                                Icons.star,
+                                size: 15,
+                                color: Colors
+                                    .amber.shade400,
+                              ),
+                            ],
+                          ],
+                        ),
+                        Text(
+                          row.company,
+                          maxLines: 1,
+                          overflow:
+                              TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color:
+                                Colors.grey.shade500,
+                            fontSize: 12,
+                          ),
+                        ),
                       ],
                     ),
-                    Text(row.company, style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
-                    const SizedBox(height: 4),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment:
+                        CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        row.price == null
+                            ? 'n/d'
+                            : '\$${row.price!.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontWeight:
+                              FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      if (row.drawdown52wPct != null)
+                        Text(
+                          '${row.drawdown52wPct!.toStringAsFixed(1)}% '
+                          'da max',
+                          style:
+                              const TextStyle(
+                            color:
+                                Colors.redAccent,
+                            fontSize: 11,
+                            fontWeight:
+                                FontWeight.w600,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 11),
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: color.withValues(
+                    alpha: 0.10,
+                  ),
+                  borderRadius:
+                      BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
                     Text(
                       row.classification,
-                      style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 10,
+                        fontWeight:
+                            FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      note,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        height: 1.3,
+                      ),
                     ),
                   ],
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
+              const SizedBox(height: 10),
+              Row(
                 children: [
-                  ScoreBadge(label: 'Opp.', value: row.opportunityScore, color: color),
-                  const SizedBox(height: 4),
-                  Text(
-                    row.drawdown52wPct != null ? '${row.drawdown52wPct!.toStringAsFixed(1)}%' : '-',
-                    style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w600),
+                  Expanded(
+                    child: _miniScore(
+                      'Anomalia',
+                      row.anomalyScore,
+                      Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _miniScore(
+                      'Valutazione',
+                      row.valuationScore,
+                      _valuationColor(
+                        row.valuationScore,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _miniScore(
+                      'Affidabilità',
+                      row.confidenceScore,
+                      _confidenceColor(
+                        row.confidenceScore,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: _miniScore(
+                      'Opportunità',
+                      row.opportunityScore,
+                      color,
+                    ),
                   ),
                 ],
               ),
@@ -339,5 +734,117 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ),
     );
+  }
+
+  Widget _miniScore(
+    String label,
+    double? value,
+    Color color,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 6,
+        vertical: 7,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(
+          alpha: 0.09,
+        ),
+        borderRadius:
+            BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value?.toStringAsFixed(0) ?? 'n/d',
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.grey.shade500,
+              fontSize: 8,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _resultNote(
+    AnomalyRow row,
+  ) {
+    final confidence =
+        row.confidenceScore ?? 0;
+    final valuation =
+        row.valuationScore ?? 0;
+    final opportunity =
+        row.opportunityScore ?? 0;
+
+    if (confidence < 50) {
+      return 'Analisi incompleta: servono più dati '
+          'prima di valutare il movimento.';
+    }
+
+    if (valuation < 50) {
+      return 'Il titolo è sceso, ma può risultare '
+          'ancora costoso.';
+    }
+
+    if (opportunity >= 70) {
+      return 'Movimento anomalo con dati '
+          'sufficientemente solidi.';
+    }
+
+    if (opportunity >= 55) {
+      return 'Movimento da monitorare '
+          'e approfondire.';
+    }
+
+    return 'Il movimento non risulta prioritario '
+        'con i dati attuali.';
+  }
+
+  Color _valuationColor(
+    double? value,
+  ) {
+    if (value == null) {
+      return Colors.grey;
+    }
+
+    if (value >= 70) {
+      return Colors.greenAccent;
+    }
+
+    if (value >= 50) {
+      return Colors.amber;
+    }
+
+    return Colors.orangeAccent;
+  }
+
+  Color _confidenceColor(
+    double? value,
+  ) {
+    if (value == null) {
+      return Colors.grey;
+    }
+
+    if (value >= 70) {
+      return Colors.greenAccent;
+    }
+
+    if (value >= 50) {
+      return Colors.amber;
+    }
+
+    return Colors.orangeAccent;
   }
 }
