@@ -1,19 +1,27 @@
 import 'package:flutter/material.dart';
+
 import 'api_client.dart';
-import 'theme.dart';
 import 'screens/dashboard_screen.dart';
-import 'screens/watchlist_screen.dart';
 import 'screens/history_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/watchlist_screen.dart';
+import 'theme.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await ApiClient.instance.load();
-  runApp(const MarketAnomalyApp());
+
+  runApp(
+    const MarketAnomalyApp(),
+  );
 }
 
-class MarketAnomalyApp extends StatelessWidget {
-  const MarketAnomalyApp({super.key});
+class MarketAnomalyApp
+    extends StatelessWidget {
+  const MarketAnomalyApp({
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -27,38 +35,109 @@ class MarketAnomalyApp extends StatelessWidget {
 }
 
 class RootScreen extends StatefulWidget {
-  const RootScreen({super.key});
+  const RootScreen({
+    super.key,
+  });
 
   @override
-  State<RootScreen> createState() => _RootScreenState();
+  State<RootScreen> createState() =>
+      _RootScreenState();
 }
 
-class _RootScreenState extends State<RootScreen> {
-  int _index = 0;
+class _RootScreenState
+    extends State<RootScreen> {
+  int _selectedIndex = 0;
+  int _configurationVersion = 0;
 
-  void _openSettings() {
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => SettingsScreen(onSaved: () => setState(() {}))))
-        .then((_) => setState(() {}));
+  Future<void> _openSettings() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SettingsScreen(
+          onSaved: () {
+            if (!mounted) return;
+
+            setState(() {
+              _configurationVersion++;
+            });
+          },
+        ),
+      ),
+    );
+
+    if (!mounted) return;
+
+    setState(() {
+      _configurationVersion++;
+    });
+  }
+
+  void _selectPage(int index) {
+    if (index == _selectedIndex) {
+      return;
+    }
+
+    setState(() {
+      _selectedIndex = index;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final screens = [
-      DashboardScreen(onOpenSettings: _openSettings),
-      const WatchlistScreen(),
-      const HistoryScreen(),
+    final screens = <Widget>[
+      DashboardScreen(
+        key: ValueKey(
+          'dashboard_$_configurationVersion',
+        ),
+        onOpenSettings: _openSettings,
+      ),
+      WatchlistScreen(
+        key: ValueKey(
+          'watchlist_$_configurationVersion',
+        ),
+      ),
+      HistoryScreen(
+        key: ValueKey(
+          'history_$_configurationVersion',
+        ),
+      ),
     ];
 
     return Scaffold(
-      body: IndexedStack(index: _index, children: screens),
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: screens,
+      ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: _selectPage,
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Dashboard'),
-          NavigationDestination(icon: Icon(Icons.star_border), selectedIcon: Icon(Icons.star), label: 'Watchlist'),
-          NavigationDestination(icon: Icon(Icons.history), selectedIcon: Icon(Icons.history), label: 'Storico'),
+          NavigationDestination(
+            icon: Icon(
+              Icons.query_stats_outlined,
+            ),
+            selectedIcon: Icon(
+              Icons.query_stats,
+            ),
+            label: 'Analisi',
+          ),
+          NavigationDestination(
+            icon: Icon(
+              Icons.star_border,
+            ),
+            selectedIcon: Icon(
+              Icons.star,
+            ),
+            label: 'Seguiti',
+          ),
+          NavigationDestination(
+            icon: Icon(
+              Icons.history_outlined,
+            ),
+            selectedIcon: Icon(
+              Icons.history,
+            ),
+            label: 'Storico',
+          ),
         ],
       ),
     );
