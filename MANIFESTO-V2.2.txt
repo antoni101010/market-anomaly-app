@@ -1,0 +1,26 @@
+MARKET ANOMALY v2.2.0 — RELEASE DEFINITIVA DEL CODICE
+
+APP MOBILE
+- Flutter/Android 2.2.0+22.
+- Gate obbligatorio al primo avvio per Termini e presa visione Privacy.
+- Linguaggio utente neutrale: “Somiglianza con casi storici”, filtri Restrittivo/Standard/Ampio, movimenti statisticamente rilevanti.
+- Hub Legale/Privacy/Metodologia/Conflitti.
+- Cancellazione del record di installazione.
+- Provenienza, timestamp, ritardo, completezza e versione modello nelle schede.
+- Tensione globale dei mercati in Home.
+
+BACKEND
+- FastAPI 2.2.0 / ma-core-2.2.0.
+- Versionamento e registrazione pseudonima delle accettazioni.
+- Global Market Tension Engine separato dallo scanner dei crolli.
+- Campione neutrale multi-exchange, 5 titoli liquidi per exchange configurato quando disponibili.
+- Valutazioni: 40% region-balanced + 60% cap-weighted; score globale 45% valutazioni, 35% euforia, 20% fragilità.
+- Copertura e stato complete/partial/unavailable espliciti.
+- Snapshot storici dell'indicatore e refresh automatico.
+
+TEST
+- 16/16 test Python superati nel pacchetto generato.
+- Test Flutter v2.2 aggiunti; workflow GitHub esegue flutter analyze, flutter test e build APK.
+
+NOTA
+I nomi tecnici interni legacy come opportunity_score restano dove necessari per compatibilità con database/API e dataset; l'interfaccia non li presenta come invito operativo.
