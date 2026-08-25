@@ -1,7 +1,7 @@
 name: market_anomaly
-description: "Market Anomaly — scanner di anomalie di mercato post-earnings."
+description: "Market Anomaly — strumento mobile di ricerca e analisi statistica dei mercati."
 publish_to: 'none'
-version: 1.0.0+1
+version: 2.2.0+22
 
 environment:
   sdk: '>=3.3.0 <4.0.0'

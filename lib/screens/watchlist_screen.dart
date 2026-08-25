@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../api_client.dart';
+import '../formatters.dart';
 import '../models.dart';
 import '../theme.dart';
 import 'ticker_detail_screen.dart';
 
 class WatchlistScreen extends StatefulWidget {
-  const WatchlistScreen({
-    super.key,
-  });
+  const WatchlistScreen({super.key});
 
   @override
   State<WatchlistScreen> createState() =>
@@ -20,7 +19,6 @@ class _WatchlistScreenState
     extends State<WatchlistScreen> {
   List<WatchlistItem> _items = [];
   final Set<String> _removing = {};
-
   bool _loading = true;
   String? _error;
 
@@ -38,7 +36,6 @@ class _WatchlistScreenState
           _loading = false;
         });
       }
-
       return;
     }
 
@@ -73,12 +70,8 @@ class _WatchlistScreenState
     }
   }
 
-  Future<void> _remove(
-    WatchlistItem item,
-  ) async {
-    if (_removing.contains(item.ticker)) {
-      return;
-    }
+  Future<void> _remove(WatchlistItem item) async {
+    if (_removing.contains(item.ticker)) return;
 
     setState(() {
       _removing.add(item.ticker);
@@ -92,8 +85,7 @@ class _WatchlistScreenState
 
       setState(() {
         _items.removeWhere(
-          (current) =>
-              current.ticker == item.ticker,
+          (current) => current.ticker == item.ticker,
         );
       });
 
@@ -110,8 +102,7 @@ class _WatchlistScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Impossibile rimuovere '
-            '${item.ticker}: $error',
+            'Impossibile rimuovere ${item.ticker}: $error',
           ),
         ),
       );
@@ -124,9 +115,7 @@ class _WatchlistScreenState
     }
   }
 
-  Future<void> _openDetail(
-    WatchlistItem item,
-  ) async {
+  Future<void> _openDetail(WatchlistItem item) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => TickerDetailScreen(
@@ -156,8 +145,7 @@ class _WatchlistScreenState
   Widget _buildBody() {
     if (_error == 'not_configured') {
       return ListView(
-        physics:
-            const AlwaysScrollableScrollPhysics(),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: const [
           EmptyState(
             icon: Icons.dns_outlined,
@@ -178,13 +166,11 @@ class _WatchlistScreenState
 
     if (_error != null) {
       return ListView(
-        physics:
-            const AlwaysScrollableScrollPhysics(),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           EmptyState(
             icon: Icons.cloud_off_outlined,
-            title:
-                'Impossibile caricare la watchlist',
+            title: 'Impossibile caricare la watchlist',
             subtitle: _error,
             actionLabel: 'Riprova',
             onAction: _load,
@@ -195,8 +181,7 @@ class _WatchlistScreenState
 
     if (_items.isEmpty) {
       return ListView(
-        physics:
-            const AlwaysScrollableScrollPhysics(),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: const [
           EmptyState(
             icon: Icons.star_border,
@@ -216,8 +201,7 @@ class _WatchlistScreenState
         16,
         28,
       ),
-      physics:
-          const AlwaysScrollableScrollPhysics(),
+      physics: const AlwaysScrollableScrollPhysics(),
       children: [
         Text(
           '${_items.length} '
@@ -230,8 +214,7 @@ class _WatchlistScreenState
         const SizedBox(height: 4),
         Text(
           'Confronta il prezzo e i punteggi attuali '
-          'con quelli registrati quando hai aggiunto '
-          'il titolo.',
+          'con quelli registrati quando hai aggiunto il titolo.',
           style: TextStyle(
             color: Colors.grey.shade600,
             fontSize: 11,
@@ -244,36 +227,28 @@ class _WatchlistScreenState
     );
   }
 
-  Widget _watchlistCard(
-    WatchlistItem item,
-  ) {
+  Widget _watchlistCard(WatchlistItem item) {
     final performance = item.performancePct;
-
     final performanceColor = performance == null
         ? Colors.grey
         : performance >= 0
             ? Colors.greenAccent
             : Colors.redAccent;
-
-    final isRemoving =
-        _removing.contains(item.ticker);
+    final isRemoving = _removing.contains(item.ticker);
 
     return Card(
       child: InkWell(
-        borderRadius:
-            BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(14),
         onTap: isRemoving
             ? null
             : () => _openDetail(item),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Column(
@@ -283,8 +258,7 @@ class _WatchlistScreenState
                         Text(
                           item.ticker,
                           style: const TextStyle(
-                            fontWeight:
-                                FontWeight.bold,
+                            fontWeight: FontWeight.bold,
                             fontSize: 16,
                           ),
                         ),
@@ -293,11 +267,9 @@ class _WatchlistScreenState
                           Text(
                             item.company!,
                             maxLines: 1,
-                            overflow:
-                                TextOverflow.ellipsis,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color:
-                                  Colors.grey.shade500,
+                              color: Colors.grey.shade500,
                               fontSize: 12,
                             ),
                           ),
@@ -306,28 +278,21 @@ class _WatchlistScreenState
                   ),
                   const SizedBox(width: 8),
                   Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        _formatPrice(
-                          item.currentPrice,
-                        ),
+                        _formatPrice(item.currentPrice, item.currency),
                         style: const TextStyle(
-                          fontWeight:
-                              FontWeight.bold,
+                          fontWeight: FontWeight.bold,
                           fontSize: 15,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        _formatPerformance(
-                          performance,
-                        ),
+                        _formatPerformance(performance),
                         style: TextStyle(
                           color: performanceColor,
-                          fontWeight:
-                              FontWeight.bold,
+                          fontWeight: FontWeight.bold,
                           fontSize: 13,
                         ),
                       ),
@@ -335,10 +300,8 @@ class _WatchlistScreenState
                   ),
                   const SizedBox(width: 4),
                   IconButton(
-                    tooltip:
-                        'Rimuovi dalla watchlist',
-                    visualDensity:
-                        VisualDensity.compact,
+                    tooltip: 'Rimuovi dalla watchlist',
+                    visualDensity: VisualDensity.compact,
                     onPressed: isRemoving
                         ? null
                         : () => _remove(item),
@@ -346,8 +309,7 @@ class _WatchlistScreenState
                         ? const SizedBox(
                             width: 17,
                             height: 17,
-                            child:
-                                CircularProgressIndicator(
+                            child: CircularProgressIndicator(
                               strokeWidth: 2,
                             ),
                           )
@@ -364,18 +326,14 @@ class _WatchlistScreenState
                   Expanded(
                     child: _comparisonBox(
                       'Prezzo',
-                      _formatPrice(
-                        item.priceAtAdd,
-                      ),
-                      _formatPrice(
-                        item.currentPrice,
-                      ),
+                      _formatPrice(item.priceAtAdd, item.currency),
+                      _formatPrice(item.currentPrice, item.currency),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: _comparisonBox(
-                      'Opportunità',
+                      'Casi storici',
                       _formatScore(
                         item.opportunityScoreAtAdd,
                       ),
@@ -398,11 +356,37 @@ class _WatchlistScreenState
                   ),
                 ],
               ),
+              if (item.catalystLabelNow.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (item.hasNewEvent
+                            ? Colors.orangeAccent
+                            : Colors.white)
+                        .withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${item.hasNewEvent ? 'Nuovo evento: ' : 'Evento corrente: '}'
+                    '${item.catalystLabelNow}',
+                    style: TextStyle(
+                      color: item.hasNewEvent
+                          ? Colors.orangeAccent
+                          : Colors.grey.shade500,
+                      fontSize: 10,
+                    ),
+                  ),
+                ),
+              ],
               if (item.addedAt != null) ...[
                 const SizedBox(height: 10),
                 Text(
-                  'Aggiunto il '
-                  '${_formatDate(item.addedAt)}',
+                  'Aggiunto il ${_formatDate(item.addedAt)}',
                   style: TextStyle(
                     color: Colors.grey.shade600,
                     fontSize: 10,
@@ -427,11 +411,8 @@ class _WatchlistScreenState
         vertical: 8,
       ),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(
-          alpha: 0.04,
-        ),
-        borderRadius:
-            BorderRadius.circular(8),
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
         children: [
@@ -460,53 +441,27 @@ class _WatchlistScreenState
     );
   }
 
-  String _formatPrice(
-    double? value,
-  ) {
-    if (value == null) {
-      return 'n/d';
-    }
-
-    return '\$${value.toStringAsFixed(2)}';
+  String _formatPrice(double? value, String currency) {
+    return formatMoney(value, currency);
   }
 
-  String _formatScore(
-    double? value,
-  ) {
-    if (value == null) {
-      return 'n/d';
-    }
-
+  String _formatScore(double? value) {
+    if (value == null) return 'n/d';
     return value.toStringAsFixed(0);
   }
 
-  String _formatPerformance(
-    double? value,
-  ) {
-    if (value == null) {
-      return 'n/d';
-    }
-
-    final sign =
-        value >= 0 ? '+' : '';
-
+  String _formatPerformance(double? value) {
+    if (value == null) return 'n/d';
+    final sign = value >= 0 ? '+' : '';
     return '$sign${value.toStringAsFixed(1)}%';
   }
 
-  String _formatDate(
-    String? isoDate,
-  ) {
-    if (isoDate == null) {
-      return 'n/d';
-    }
+  String _formatDate(String? isoDate) {
+    if (isoDate == null) return 'n/d';
 
     try {
-      final date =
-          DateTime.parse(isoDate).toLocal();
-
-      return DateFormat(
-        'dd/MM/yyyy',
-      ).format(date);
+      final date = DateTime.parse(isoDate).toLocal();
+      return DateFormat('dd/MM/yyyy').format(date);
     } catch (_) {
       return isoDate;
     }

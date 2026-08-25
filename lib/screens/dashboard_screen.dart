@@ -3,17 +3,23 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../analysis_preferences.dart';
 import '../api_client.dart';
+import '../formatters.dart';
 import '../models.dart';
 import '../theme.dart';
 import 'ticker_detail_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final VoidCallback onOpenSettings;
+  final VoidCallback onOpenPreferences;
+  final AnalysisPreferences preferences;
 
   const DashboardScreen({
     super.key,
     required this.onOpenSettings,
+    required this.onOpenPreferences,
+    required this.preferences,
   });
 
   @override
@@ -34,6 +40,14 @@ class _DashboardScreenState
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant DashboardScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.preferences, widget.preferences)) {
+      _load();
+    }
   }
 
   @override
@@ -61,7 +75,35 @@ class _DashboardScreenState
 
     try {
       final data =
-          await ApiClient.instance.getDashboard();
+          await ApiClient.instance.getDashboard(
+        minOpportunity: widget.preferences.simpleMode
+            ? 45
+            : widget.preferences.minOpportunity,
+        maxValueTrap: widget.preferences.simpleMode
+            ? 65
+            : widget.preferences.maxValueTrap,
+        minAnomaly: widget.preferences.minAnomaly,
+        minConfidence: widget.preferences.simpleMode
+            ? 25
+            : widget.preferences.minConfidence,
+        topN: widget.preferences.topN,
+        market: widget.preferences.market,
+        companySize: widget.preferences.companySize,
+        riskProfile: widget.preferences.riskProfile,
+        sectors: widget.preferences.sectors,
+        minValuation: widget.preferences.simpleMode
+            ? 0
+            : widget.preferences.minValuation,
+        minDrawdownPct: widget.preferences.simpleMode
+            ? 0
+            : widget.preferences.minDrawdownPct,
+        minAverageVolume: widget.preferences.simpleMode
+            ? 0
+            : widget.preferences.minAverageVolume,
+        eventFilter: widget.preferences.simpleMode
+            ? 'all'
+            : widget.preferences.eventFilter,
+      );
 
       if (!mounted) return;
 
@@ -93,7 +135,14 @@ class _DashboardScreenState
 
     try {
       final result = await ApiClient.instance
-          .triggerScan(limit: 100);
+          .triggerScan(
+        limit: widget.preferences.simpleMode
+            ? 200
+            : widget.preferences.scanLimit,
+        catalystTopN: widget.preferences.simpleMode
+            ? 10
+            : widget.preferences.catalystTopN,
+      );
 
       if (!mounted) return;
 
@@ -177,8 +226,8 @@ class _DashboardScreenState
         await _load();
       }
     } catch (_) {
-      // Un errore temporaneo di rete non interrompe
-      // il controllo. Il timer riproverà.
+      // Un errore temporaneo di rete non interrompe il controllo.
+      // Il timer riproverà automaticamente.
     }
   }
 
@@ -188,12 +237,8 @@ class _DashboardScreenState
     }
 
     try {
-      final date =
-          DateTime.parse(isoDate).toLocal();
-
-      return DateFormat(
-        'dd/MM/yyyy HH:mm',
-      ).format(date);
+      final date = DateTime.parse(isoDate).toLocal();
+      return DateFormat('dd/MM/yyyy HH:mm').format(date);
     } catch (_) {
       return isoDate;
     }
@@ -205,6 +250,11 @@ class _DashboardScreenState
       appBar: AppBar(
         title: const Text('Market Anomaly'),
         actions: [
+          IconButton(
+            tooltip: 'Personalizza analisi',
+            icon: const Icon(Icons.tune),
+            onPressed: widget.onOpenPreferences,
+          ),
           IconButton(
             tooltip: 'Impostazioni',
             icon: const Icon(
@@ -227,8 +277,7 @@ class _DashboardScreenState
                       ? const SizedBox(
                           width: 16,
                           height: 16,
-                          child:
-                              CircularProgressIndicator(
+                          child: CircularProgressIndicator(
                             strokeWidth: 2,
                             color: Colors.black,
                           ),
@@ -247,8 +296,7 @@ class _DashboardScreenState
   Widget _buildBody() {
     if (_error == 'not_configured') {
       return ListView(
-        physics:
-            const AlwaysScrollableScrollPhysics(),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           EmptyState(
             icon: Icons.dns_outlined,
@@ -265,8 +313,7 @@ class _DashboardScreenState
 
     if (_error != null) {
       return ListView(
-        physics:
-            const AlwaysScrollableScrollPhysics(),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           EmptyState(
             icon: Icons.cloud_off_outlined,
@@ -293,8 +340,7 @@ class _DashboardScreenState
 
     if (data.scanTime == null && !_scanning) {
       return ListView(
-        physics:
-            const AlwaysScrollableScrollPhysics(),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           EmptyState(
             icon: Icons.query_stats_outlined,
@@ -316,11 +362,12 @@ class _DashboardScreenState
         16,
         96,
       ),
-      physics:
-          const AlwaysScrollableScrollPhysics(),
+      physics: const AlwaysScrollableScrollPhysics(),
       children: [
         if (_scanning) _buildScanningBanner(),
         _buildScanHeader(data),
+        const SizedBox(height: 16),
+        _buildMarketTensionCard(data.marketTension),
         const SizedBox(height: 16),
         Row(
           children: [
@@ -340,7 +387,7 @@ class _DashboardScreenState
             const SizedBox(width: 8),
             Expanded(
               child: _statTile(
-                'Migliore',
+                'Somiglianza max',
                 data.stats.maxOpportunity
                         ?.toStringAsFixed(0) ??
                     'n/d',
@@ -348,17 +395,19 @@ class _DashboardScreenState
             ),
           ],
         ),
+        if (data.stats.stalePrices > 0 || data.stats.failed > 0) ...[
+          const SizedBox(height: 12),
+          _dataQualityWarning(data.stats),
+        ],
         const SizedBox(height: 22),
         Text(
-          'Movimenti rilevati',
-          style:
-              Theme.of(context).textTheme.titleLarge,
+          'Movimenti statisticamente rilevanti',
+          style: Theme.of(context).textTheme.titleLarge,
         ),
         const SizedBox(height: 5),
         Text(
-          'Ordinati per punteggio di opportunità. '
-          'Un forte ribasso non significa automaticamente '
-          'che il titolo sia conveniente.',
+          'Ordinati con i tuoi filtri. Apri una scheda per vedere '
+          'dati, fonti, limiti e motivi specifici del punteggio.',
           style: TextStyle(
             color: Colors.grey.shade500,
             fontSize: 12,
@@ -369,16 +418,13 @@ class _DashboardScreenState
         if (data.topAnomalies.isEmpty)
           const EmptyState(
             icon: Icons.search_off,
-            title: 'Nessun movimento rilevato',
+            title: 'Nessun movimento statisticamente rilevante',
             subtitle:
                 'Aggiorna i dati oppure attendi '
                 'la prossima scansione.',
           )
         else
-          ...data.topAnomalies
-              .asMap()
-              .entries
-              .map(
+          ...data.topAnomalies.asMap().entries.map(
                 (entry) => _anomalyCard(
                   entry.key + 1,
                   entry.value,
@@ -390,19 +436,13 @@ class _DashboardScreenState
 
   Widget _buildScanningBanner() {
     return Container(
-      margin: const EdgeInsets.only(
-        bottom: 16,
-      ),
+      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.blue.withValues(
-          alpha: 0.12,
-        ),
+        color: Colors.blue.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.blue.withValues(
-            alpha: 0.2,
-          ),
+          color: Colors.blue.withValues(alpha: 0.2),
         ),
       ),
       child: Row(
@@ -420,9 +460,7 @@ class _DashboardScreenState
               _scanMessage.isEmpty
                   ? 'Scansione in corso sul server...'
                   : _scanMessage,
-              style: const TextStyle(
-                fontSize: 13,
-              ),
+              style: const TextStyle(fontSize: 13),
             ),
           ),
         ],
@@ -430,15 +468,10 @@ class _DashboardScreenState
     );
   }
 
-  Widget _buildScanHeader(
-    DashboardData data,
-  ) {
-    final isDemo =
-        data.marketMode == 'demo';
-
-    final modeColor = isDemo
-        ? Colors.orangeAccent
-        : Colors.greenAccent;
+  Widget _buildScanHeader(DashboardData data) {
+    final isDemo = data.marketMode == 'demo';
+    final modeColor =
+        isDemo ? Colors.orangeAccent : Colors.greenAccent;
 
     return Row(
       children: [
@@ -458,11 +491,8 @@ class _DashboardScreenState
             vertical: 4,
           ),
           decoration: BoxDecoration(
-            color: modeColor.withValues(
-              alpha: 0.15,
-            ),
-            borderRadius:
-                BorderRadius.circular(6),
+            color: modeColor.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(6),
           ),
           child: Text(
             isDemo ? 'DEMO' : 'LIVE',
@@ -488,8 +518,7 @@ class _DashboardScreenState
       ),
       decoration: BoxDecoration(
         color: const Color(0xFF161B22),
-        borderRadius:
-            BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         children: [
@@ -515,26 +544,190 @@ class _DashboardScreenState
     );
   }
 
+  Widget _buildMarketTensionCard(MarketTensionData tension) {
+    final available = tension.score != null;
+    final score = tension.score?.toStringAsFixed(0) ?? 'n/d';
+    final color = !available
+        ? Colors.grey
+        : tension.score! >= 70
+            ? Colors.orangeAccent
+            : tension.score! >= 50
+                ? Colors.amber
+                : Colors.lightBlueAccent;
+
+    return Card(
+      child: ExpansionTile(
+        tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+        childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 16),
+        leading: Icon(Icons.public, color: color),
+        title: const Text(
+          'Tensione globale dei mercati',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        subtitle: Text(
+          available
+              ? '$score/100 · ${tension.level} · copertura ${tension.coveragePct.toStringAsFixed(0)}%'
+              : 'Non ancora disponibile',
+          style: TextStyle(color: color, fontSize: 11),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              score,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.bold,
+                fontSize: 20,
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.expand_more),
+          ],
+        ),
+        children: [
+          Text(
+            tension.explanation,
+            style: const TextStyle(fontSize: 12, height: 1.45),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _tensionMetric(
+                  'Valutazioni',
+                  tension.valuationPressure,
+                ),
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: _tensionMetric(
+                  'Euforia prezzi',
+                  tension.priceEuphoria,
+                ),
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: _tensionMetric(
+                  'Fragilità',
+                  tension.fragility,
+                ),
+              ),
+            ],
+          ),
+          if (tension.regionalValuation.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                tension.regionalValuation.entries
+                    .map((entry) =>
+                        '${entry.key}: ${entry.value.toStringAsFixed(0)}')
+                    .join(' · '),
+                style: TextStyle(
+                  color: Colors.grey.shade400,
+                  fontSize: 10,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          Text(
+            '${tension.dataDelayNote} ${tension.historicalWarning}',
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 9,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tensionMetric(String label, double? value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+      decoration: BoxDecoration(
+        color: const Color(0xFF161B22),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value?.toStringAsFixed(0) ?? 'n/d',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: Colors.grey.shade500, fontSize: 8),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dataQualityWarning(DashboardStats stats) {
+    final details = <String>[
+      if (stats.stalePrices > 0)
+        '${stats.stalePrices} prezzi non recenti o da verificare',
+      if (stats.failed > 0)
+        '${stats.failed} analisi non completate',
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: Colors.orange.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: Colors.orange.withValues(alpha: 0.22),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.warning_amber_outlined,
+            color: Colors.orangeAccent,
+            size: 17,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '${details.join(' · ')}. Apri le schede per vedere fonte, '
+              'orario e campi mancanti.',
+              style: TextStyle(
+                color: Colors.grey.shade400,
+                fontSize: 10,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _anomalyCard(
     int rank,
     AnomalyRow row,
   ) {
     final color =
-        classificationColor(
-      row.classification,
-    );
-
+        classificationColor(row.classification);
     final note = _resultNote(row);
 
     return Card(
       child: InkWell(
-        borderRadius:
-            BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(14),
         onTap: () async {
           await Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) =>
-                  TickerDetailScreen(
+              builder: (_) => TickerDetailScreen(
                 ticker: row.ticker,
               ),
             ),
@@ -547,25 +740,20 @@ class _DashboardScreenState
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   CircleAvatar(
                     radius: 16,
                     backgroundColor:
-                        color.withValues(
-                      alpha: 0.15,
-                    ),
+                        color.withValues(alpha: 0.15),
                     child: Text(
                       '$rank',
                       style: TextStyle(
                         color: color,
-                        fontWeight:
-                            FontWeight.bold,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
@@ -580,26 +768,19 @@ class _DashboardScreenState
                             Flexible(
                               child: Text(
                                 row.ticker,
-                                overflow:
-                                    TextOverflow
-                                        .ellipsis,
-                                style:
-                                    const TextStyle(
-                                  fontWeight:
-                                      FontWeight.bold,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
                                   fontSize: 16,
                                 ),
                               ),
                             ),
                             if (row.inWatchlist) ...[
-                              const SizedBox(
-                                width: 6,
-                              ),
+                              const SizedBox(width: 6),
                               Icon(
                                 Icons.star,
                                 size: 15,
-                                color: Colors
-                                    .amber.shade400,
+                                color: Colors.amber.shade400,
                               ),
                             ],
                           ],
@@ -607,11 +788,9 @@ class _DashboardScreenState
                         Text(
                           row.company,
                           maxLines: 1,
-                          overflow:
-                              TextOverflow.ellipsis,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color:
-                                Colors.grey.shade500,
+                            color: Colors.grey.shade500,
                             fontSize: 12,
                           ),
                         ),
@@ -620,16 +799,12 @@ class _DashboardScreenState
                   ),
                   const SizedBox(width: 10),
                   Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        row.price == null
-                            ? 'n/d'
-                            : '\$${row.price!.toStringAsFixed(2)}',
+                        formatMoney(row.price, row.currency),
                         style: const TextStyle(
-                          fontWeight:
-                              FontWeight.bold,
+                          fontWeight: FontWeight.bold,
                           fontSize: 14,
                         ),
                       ),
@@ -637,15 +812,23 @@ class _DashboardScreenState
                         Text(
                           '${row.drawdown52wPct!.toStringAsFixed(1)}% '
                           'da max',
-                          style:
-                              const TextStyle(
-                            color:
-                                Colors.redAccent,
+                          style: const TextStyle(
+                            color: Colors.redAccent,
                             fontSize: 11,
-                            fontWeight:
-                                FontWeight.w600,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
+                      const SizedBox(height: 2),
+                      Text(
+                        priceStatusLabel(row.priceStatus),
+                        style: TextStyle(
+                          color: row.priceStatus == 'conflict' ||
+                                  row.priceStatus == 'stale'
+                              ? Colors.orangeAccent
+                              : Colors.grey.shade600,
+                          fontSize: 8,
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -653,29 +836,23 @@ class _DashboardScreenState
               const SizedBox(height: 11),
               Container(
                 width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(
+                padding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: color.withValues(
-                    alpha: 0.10,
-                  ),
-                  borderRadius:
-                      BorderRadius.circular(8),
+                  color: color.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       row.classification,
                       style: TextStyle(
                         color: color,
                         fontSize: 10,
-                        fontWeight:
-                            FontWeight.bold,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -699,30 +876,28 @@ class _DashboardScreenState
                       Colors.white,
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: _miniScore(
-                      'Valutazione',
-                      row.valuationScore,
-                      _valuationColor(
+                  if (!widget.preferences.simpleMode) ...[
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: _miniScore(
+                        'Valutazione',
                         row.valuationScore,
+                        _valuationColor(row.valuationScore),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: _miniScore(
-                      'Affidabilità',
-                      row.confidenceScore,
-                      _confidenceColor(
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: _miniScore(
+                        'Affidabilità',
                         row.confidenceScore,
+                        _confidenceColor(row.confidenceScore),
                       ),
                     ),
-                  ),
+                  ],
                   const SizedBox(width: 6),
                   Expanded(
                     child: _miniScore(
-                      'Opportunità',
+                      'Casi storici',
                       row.opportunityScore,
                       color,
                     ),
@@ -747,11 +922,8 @@ class _DashboardScreenState
         vertical: 7,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(
-          alpha: 0.09,
-        ),
-        borderRadius:
-            BorderRadius.circular(8),
+        color: color.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
         children: [
@@ -778,73 +950,25 @@ class _DashboardScreenState
     );
   }
 
-  String _resultNote(
-    AnomalyRow row,
-  ) {
-    final confidence =
-        row.confidenceScore ?? 0;
-    final valuation =
-        row.valuationScore ?? 0;
-    final opportunity =
-        row.opportunityScore ?? 0;
-
-    if (confidence < 50) {
-      return 'Analisi incompleta: servono più dati '
-          'prima di valutare il movimento.';
+  String _resultNote(AnomalyRow row) {
+    if (row.summary.trim().isNotEmpty) return row.summary;
+    if (row.dataGaps.isNotEmpty) {
+      return 'Dato da completare: ${row.dataGaps.first}.';
     }
-
-    if (valuation < 50) {
-      return 'Il titolo è sceso, ma può risultare '
-          'ancora costoso.';
-    }
-
-    if (opportunity >= 70) {
-      return 'Movimento anomalo con dati '
-          'sufficientemente solidi.';
-    }
-
-    if (opportunity >= 55) {
-      return 'Movimento da monitorare '
-          'e approfondire.';
-    }
-
-    return 'Il movimento non risulta prioritario '
-        'con i dati attuali.';
+    return 'Classificazione calcolata sui dati disponibili.';
   }
 
-  Color _valuationColor(
-    double? value,
-  ) {
-    if (value == null) {
-      return Colors.grey;
-    }
-
-    if (value >= 70) {
-      return Colors.greenAccent;
-    }
-
-    if (value >= 50) {
-      return Colors.amber;
-    }
-
+  Color _valuationColor(double? value) {
+    if (value == null) return Colors.grey;
+    if (value >= 70) return Colors.greenAccent;
+    if (value >= 50) return Colors.amber;
     return Colors.orangeAccent;
   }
 
-  Color _confidenceColor(
-    double? value,
-  ) {
-    if (value == null) {
-      return Colors.grey;
-    }
-
-    if (value >= 70) {
-      return Colors.greenAccent;
-    }
-
-    if (value >= 50) {
-      return Colors.amber;
-    }
-
+  Color _confidenceColor(double? value) {
+    if (value == null) return Colors.grey;
+    if (value >= 70) return Colors.greenAccent;
+    if (value >= 50) return Colors.amber;
     return Colors.orangeAccent;
   }
 }

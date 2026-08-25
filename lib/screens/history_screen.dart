@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../api_client.dart';
+import '../formatters.dart';
 import '../models.dart';
 import '../theme.dart';
 import 'ticker_detail_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
-  const HistoryScreen({
-    super.key,
-  });
+  const HistoryScreen({super.key});
 
   @override
   State<HistoryScreen> createState() =>
@@ -36,7 +35,6 @@ class _HistoryScreenState
           _loading = false;
         });
       }
-
       return;
     }
 
@@ -48,10 +46,8 @@ class _HistoryScreenState
     }
 
     try {
-      final entries =
-          await ApiClient.instance.getHistory(
-        limit: 300,
-      );
+      final entries = await ApiClient.instance
+          .getHistory(limit: 300);
 
       if (!mounted) return;
 
@@ -73,9 +69,7 @@ class _HistoryScreenState
     }
   }
 
-  Future<void> _openDetail(
-    HistoryEntry entry,
-  ) async {
+  Future<void> _openDetail(HistoryEntry entry) async {
     try {
       await Navigator.of(context).push(
         MaterialPageRoute(
@@ -97,16 +91,10 @@ class _HistoryScreenState
     }
   }
 
-  String _formatTime(
-    String isoDate,
-  ) {
+  String _formatTime(String isoDate) {
     try {
-      final date =
-          DateTime.parse(isoDate).toLocal();
-
-      return DateFormat(
-        'dd/MM/yyyy HH:mm',
-      ).format(date);
+      final date = DateTime.parse(isoDate).toLocal();
+      return DateFormat('dd/MM/yyyy HH:mm').format(date);
     } catch (_) {
       return isoDate;
     }
@@ -128,8 +116,7 @@ class _HistoryScreenState
   Widget _buildBody() {
     if (_error == 'not_configured') {
       return ListView(
-        physics:
-            const AlwaysScrollableScrollPhysics(),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: const [
           EmptyState(
             icon: Icons.dns_outlined,
@@ -150,13 +137,11 @@ class _HistoryScreenState
 
     if (_error != null) {
       return ListView(
-        physics:
-            const AlwaysScrollableScrollPhysics(),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           EmptyState(
             icon: Icons.cloud_off_outlined,
-            title:
-                'Impossibile caricare lo storico',
+            title: 'Impossibile caricare lo storico',
             subtitle: _error,
             actionLabel: 'Riprova',
             onAction: _load,
@@ -167,8 +152,7 @@ class _HistoryScreenState
 
     if (_entries.isEmpty) {
       return ListView(
-        physics:
-            const AlwaysScrollableScrollPhysics(),
+        physics: const AlwaysScrollableScrollPhysics(),
         children: const [
           EmptyState(
             icon: Icons.history,
@@ -188,8 +172,7 @@ class _HistoryScreenState
         16,
         28,
       ),
-      physics:
-          const AlwaysScrollableScrollPhysics(),
+      physics: const AlwaysScrollableScrollPhysics(),
       children: [
         Text(
           '${_entries.length} analisi registrate',
@@ -200,8 +183,8 @@ class _HistoryScreenState
         ),
         const SizedBox(height: 4),
         Text(
-          'Ogni elemento conserva i punteggi rilevati '
-          'nel momento della scansione.',
+          'Ogni elemento conserva lo snapshot originale e mostra gli esiti '
+          'reali maturati a 1, 3, 7, 30, 90 e 180 sedute.',
           style: TextStyle(
             color: Colors.grey.shade600,
             fontSize: 11,
@@ -214,33 +197,22 @@ class _HistoryScreenState
     );
   }
 
-  Widget _historyCard(
-    HistoryEntry entry,
-  ) {
+  Widget _historyCard(HistoryEntry entry) {
     final opportunityColor =
-        _opportunityColor(
-      entry.opportunityScore,
-    );
-
-    final riskColor =
-        _riskColor(
-      entry.valueTrapRisk,
-    );
+        _opportunityColor(entry.opportunityScore);
+    final riskColor = _riskColor(entry.valueTrapRisk);
 
     return Card(
       child: InkWell(
-        borderRadius:
-            BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(14),
         onTap: () => _openDetail(entry),
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Column(
@@ -250,8 +222,7 @@ class _HistoryScreenState
                         Text(
                           entry.ticker,
                           style: const TextStyle(
-                            fontWeight:
-                                FontWeight.bold,
+                            fontWeight: FontWeight.bold,
                             fontSize: 16,
                           ),
                         ),
@@ -260,22 +231,17 @@ class _HistoryScreenState
                           Text(
                             entry.company!,
                             maxLines: 1,
-                            overflow:
-                                TextOverflow.ellipsis,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color:
-                                  Colors.grey.shade500,
+                              color: Colors.grey.shade500,
                               fontSize: 12,
                             ),
                           ),
                         const SizedBox(height: 3),
                         Text(
-                          _formatTime(
-                            entry.signalTime,
-                          ),
+                          _formatTime(entry.signalTime),
                           style: TextStyle(
-                            color:
-                                Colors.grey.shade600,
+                            color: Colors.grey.shade600,
                             fontSize: 10,
                           ),
                         ),
@@ -284,14 +250,12 @@ class _HistoryScreenState
                   ),
                   const SizedBox(width: 10),
                   Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        _formatPrice(entry.price),
+                        _formatPrice(entry.price, entry.currency),
                         style: const TextStyle(
-                          fontWeight:
-                              FontWeight.bold,
+                          fontWeight: FontWeight.bold,
                           fontSize: 15,
                         ),
                       ),
@@ -301,8 +265,7 @@ class _HistoryScreenState
                         style: TextStyle(
                           color: opportunityColor,
                           fontSize: 10,
-                          fontWeight:
-                              FontWeight.w600,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -322,7 +285,7 @@ class _HistoryScreenState
                   const SizedBox(width: 7),
                   Expanded(
                     child: _scoreBox(
-                      'Opportunità',
+                      'Casi storici',
                       entry.opportunityScore,
                       opportunityColor,
                     ),
@@ -340,9 +303,7 @@ class _HistoryScreenState
                     child: _scoreBox(
                       'Qualità',
                       entry.qualityScore,
-                      _qualityColor(
-                        entry.qualityScore,
-                      ),
+                      _qualityColor(entry.qualityScore),
                     ),
                   ),
                 ],
@@ -352,15 +313,13 @@ class _HistoryScreenState
                 const SizedBox(height: 9),
                 Row(
                   children: [
-                    if (entry.recoveryPotential !=
-                        null)
+                    if (entry.recoveryPotential != null)
                       Expanded(
                         child: Text(
-                          'Recupero stimato: '
+                          'Pattern recupero storico: '
                           '${entry.recoveryPotential!.toStringAsFixed(0)}/100',
                           style: TextStyle(
-                            color:
-                                Colors.grey.shade500,
+                            color: Colors.grey.shade500,
                             fontSize: 10,
                           ),
                         ),
@@ -370,12 +329,37 @@ class _HistoryScreenState
                         'Rischio evento: '
                         '${entry.catalystRisk!.toStringAsFixed(0)}/100',
                         style: TextStyle(
-                          color:
-                              Colors.grey.shade500,
+                          color: Colors.grey.shade500,
                           fontSize: 10,
                         ),
                       ),
                   ],
+                ),
+              ],
+              if (entry.catalystLabel.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Evento: ${entry.catalystLabel}',
+                  style: TextStyle(
+                    color: Colors.grey.shade500,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+              if (entry.outcomes.isNotEmpty) ...[
+                const Divider(height: 24),
+                const Text(
+                  'Cosa è successo dopo',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 7,
+                  runSpacing: 7,
+                  children: entry.outcomes.map(_outcomeBox).toList(),
                 ),
               ],
             ],
@@ -383,6 +367,66 @@ class _HistoryScreenState
         ),
       ),
     );
+  }
+
+  Widget _outcomeBox(HistoryOutcome outcome) {
+    final complete = outcome.status == 'complete';
+    final absolute = outcome.absoluteReturnPct;
+    final color = !complete || absolute == null
+        ? Colors.grey
+        : absolute >= 0
+            ? Colors.greenAccent
+            : Colors.redAccent;
+    final horizon = outcome.horizonSessions == 1
+        ? '+1 seduta'
+        : '+${outcome.horizonSessions} sedute';
+
+    return Container(
+      width: 132,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.14)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            horizon,
+            style: TextStyle(
+              color: Colors.grey.shade500,
+              fontSize: 9,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            complete ? _signedPercent(absolute) : 'in attesa',
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+          if (complete && outcome.relativeReturnPct != null)
+            Text(
+              'vs benchmark ${_signedPercent(outcome.relativeReturnPct)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.grey.shade600,
+                fontSize: 8,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _signedPercent(double? value) {
+    if (value == null) return 'n/d';
+    final sign = value >= 0 ? '+' : '';
+    return '$sign${value.toStringAsFixed(1)}%';
   }
 
   Widget _scoreBox(
@@ -396,11 +440,8 @@ class _HistoryScreenState
         vertical: 7,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(
-          alpha: 0.09,
-        ),
-        borderRadius:
-            BorderRadius.circular(8),
+        color: color.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
         children: [
@@ -427,91 +468,47 @@ class _HistoryScreenState
     );
   }
 
-  String _historyLabel(
-    HistoryEntry entry,
-  ) {
-    final opportunity =
-        entry.opportunityScore ?? 0;
-
-    final valueTrap =
-        entry.valueTrapRisk ?? 0;
+  String _historyLabel(HistoryEntry entry) {
+    final opportunity = entry.opportunityScore ?? 0;
+    final valueTrap = entry.valueTrapRisk ?? 0;
 
     if (valueTrap >= 70) {
-      return 'RISCHIO ELEVATO';
+      return 'RISCHIO STRUTTURALE ELEVATO';
     }
 
     if (opportunity >= 70) {
-      return 'DA APPROFONDIRE';
+      return 'SOMIGLIANZA STORICA ALTA';
     }
 
     if (opportunity >= 55) {
-      return 'DA MONITORARE';
+      return 'SOMIGLIANZA STORICA MEDIA';
     }
 
-    return 'NON PRIORITARIO';
+    return 'SOMIGLIANZA STORICA BASSA';
   }
 
-  Color _opportunityColor(
-    double? value,
-  ) {
-    if (value == null) {
-      return Colors.grey;
-    }
-
-    if (value >= 70) {
-      return Colors.greenAccent;
-    }
-
-    if (value >= 55) {
-      return Colors.amber;
-    }
-
+  Color _opportunityColor(double? value) {
+    if (value == null) return Colors.grey;
+    if (value >= 70) return Colors.greenAccent;
+    if (value >= 55) return Colors.amber;
     return Colors.grey;
   }
 
-  Color _riskColor(
-    double? value,
-  ) {
-    if (value == null) {
-      return Colors.grey;
-    }
-
-    if (value >= 70) {
-      return Colors.redAccent;
-    }
-
-    if (value >= 45) {
-      return Colors.orangeAccent;
-    }
-
+  Color _riskColor(double? value) {
+    if (value == null) return Colors.grey;
+    if (value >= 70) return Colors.redAccent;
+    if (value >= 45) return Colors.orangeAccent;
     return Colors.greenAccent;
   }
 
-  Color _qualityColor(
-    double? value,
-  ) {
-    if (value == null) {
-      return Colors.grey;
-    }
-
-    if (value >= 70) {
-      return Colors.greenAccent;
-    }
-
-    if (value >= 50) {
-      return Colors.amber;
-    }
-
+  Color _qualityColor(double? value) {
+    if (value == null) return Colors.grey;
+    if (value >= 70) return Colors.greenAccent;
+    if (value >= 50) return Colors.amber;
     return Colors.orangeAccent;
   }
 
-  String _formatPrice(
-    double? value,
-  ) {
-    if (value == null) {
-      return 'n/d';
-    }
-
-    return '\$${value.toStringAsFixed(2)}';
+  String _formatPrice(double? value, String currency) {
+    return formatMoney(value, currency);
   }
 }
