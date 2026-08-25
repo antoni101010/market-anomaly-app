@@ -70,3 +70,15 @@ autorizzi sulla chiave reale. Il codice, i parser, i fallback e i test offline
 sono pronti; dopo l'upgrade va eseguita una scansione e controllato in
 `/api/diagnostics` che `last_scan_mode` sia live, che i mercati siano coperti e
 che non compaia `fallback_without_screener`.
+
+## v2.3 implementato
+
+- Bulk Global Light Scanner EODHD multi-exchange, limite sicurezza 50.000.
+- Ranking globale + copertura geografica Deep fino a 300.
+- News EODHD Catalyst Engine fino a 120 candidati.
+- Conteggi distinti Universo / Light / Deep / risultati filtrati.
+- Correzioni grafici calendar-based e 1G/5G robusti.
+- P/S derivato, cash runway N/A, Confidence multi-layer.
+- Diagnostica Global Market Tension.
+- UI senza falso `LIVE`, WebSocket realtime USA on-demand e sorgenti leggibili.
+- 31/31 test backend superati, inclusi test APP-like, universo 20.000, NVDA/listing primaria e intraday 1G/5G.

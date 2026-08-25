@@ -1,0 +1,27 @@
+MARKET ANOMALY v2.3.0
+
+Release: Global Scanner & Data Correctness
+App: 2.3.0+23
+Backend/model: 2.3.0 / ma-core-2.3.0
+
+Principio principale:
+Market Anomaly deve cercare le anomalie dentro l'intero universo azionario
+eleggibile, non dentro una shortlist prefiltrata di poche decine di titoli.
+
+- Light Scanner: fino a 50.000 righe, universo globale multi-exchange.
+- Deep Engine: fino a 300 candidati globalmente prioritizzati.
+- Catalyst Engine: fino a 120 candidati con news/eventi.
+- Default home: anomalie forti, ordinate per Anomaly Score.
+- Filtri: normale / forte / molto forte e filtri avanzati.
+- Caso regressione obbligatorio: APP/AppLovin-like deve emergere automaticamente.
+- Grafici e data-quality corretti come da RILASCIO-V2.3-GLOBAL-SCANNER.md.
+- Linguaggio statistico neutro; nessuna raccomandazione finanziaria.
+
+FASCE LIGHT CONSULTABILI
+- Molto forte: 60–100 (default).
+- Forte: 40–59,9.
+- Normale: 20–39,9.
+- I titoli Light vengono analizzati Deep on-demand quando l’utente apre la scheda.
+
+- WebSocket realtime USA on-demand (scheda/grafico), fallback REST ritardato.
+- Bulk USA normalizzato sul codice exchange EODHD US; venue OTC/PINK escluse dal core.

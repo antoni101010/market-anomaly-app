@@ -1,10 +1,18 @@
+# AGGIORNAMENTO v2.3.0 — 25 agosto 2026
+
+Questa ZIP sostituisce la v2.2 per il codice applicativo. La novità principale è il **Global Light Scanner**: l'intero universo azionario eleggibile viene controllato prima di scegliere i candidati Deep. Il caso APP/AppLovin è coperto da un test di regressione. Sono incluse anche le correzioni emerse dai test reali su grafici, intraday, completezza, Confidence, catalizzatori, fonti dati e tensione globale.
+
+Apri `RILASCIO-V2.3-GLOBAL-SCANNER.md`, `MANIFESTO-V2.3.txt` e `TEST-REPORT-V2.3.md` per i dettagli. **Non servono modifiche manuali al codice dopo l'upload**; il backend preserva il core globale anche se Render contiene vecchie env della v2.2.
+
+---
+
 # AGGIORNAMENTO v2.2.0 — 25 agosto 2026
 
 Questa ZIP include ora il Legal & Compliance Layer e il Global Market Tension Engine. Per il riepilogo completo apri `RILASCIO-V2.2-LEGAL-TENSION.md` e `MANIFESTO-V2.2.txt`. I testi legali sono in `LEGAL/` e le pagine web statiche in `legal-web/`.
 
 ---
 
-# Market Anomaly 2.1 — pacchetto definitivo coordinato
+# Market Anomaly — pacchetto coordinato (storico v2.1, aggiornato fino a v2.3)
 
 Questo ZIP contiene **entrambi i repository completi e coordinati**. Non devi
 ricopiare blocchi né correggere nuovamente i file già modificati.
@@ -21,7 +29,7 @@ ricopiare blocchi né correggere nuovamente i file già modificati.
 3. Seleziona **Add file > Upload files**.
 4. Trascina **il contenuto** di `market-anomaly-api-main`, inclusa `.github`.
    Non trascinare la cartella contenitore.
-5. Crea un unico commit: `Market Anomaly API 2.1 definitiva`.
+5. Crea un unico commit: `Market Anomaly API v2.3`.
 6. Attendi che su GitHub Actions `Verifica backend` sia verde e che Render
    completi il deploy.
 
@@ -64,7 +72,7 @@ non contiene la chiave e non può avviarsi senza questo secret.
 1. Apri la radice del repository GitHub dell'app.
 2. Seleziona **Add file > Upload files**.
 3. Trascina **il contenuto** di `market-anomaly-app-main`, inclusa `.github`.
-4. Crea un unico commit: `Market Anomaly app 2.1 definitiva`.
+4. Crea un unico commit: `Market Anomaly app v2.3`.
 5. Attendi che `Build Android APK` sia verde.
 6. Scarica l'artefatto `market-anomaly-apk`, estrailo e installa
    `app-release.apk` sopra l'app esistente.
@@ -72,22 +80,33 @@ non contiene la chiave e non può avviarsi senza questo secret.
 L'identificativo Android non cambia: URL del server, chiave API,
 personalizzazioni e configurazioni salvate restano sul telefono.
 
-## Piano EODHD attuale e piano a pagamento
+## Piano EODHD e uso della v2.3
 
-Con il piano attuale, EODHD risponde HTTP 403 per lo Screener e per alcuni
-fondamentali. In quel caso la release usa **25 titoli reali di riserva** per
-consentire sviluppo e verifica, senza inventare dati.
+La v2.3 è predisposta per il piano **EODHD All-In-One** già configurato sul
+backend. Il Global Light Scanner usa il Bulk EOD `extended` per interi exchange:
+non effettua una richiesta completa per ogni singola società. Il codice usa il
+composito `US` per il mercato statunitense (poi filtra le venue
+NASDAQ/NYSE/AMEX/BATS tramite metadati), evitando endpoint Bulk non validi.
 
-Quando il piano abilita lo Screener, non serve cambiare codice: alla scansione
-successiva il fallback si disattiva automaticamente e il Light Scanner passa
-all'universo globale configurato (obiettivo 10.000 strumenti coperti su 19
-mercati), quindi inoltra al Deep Engine fino a 200 candidati. La disponibilità
-effettiva di Screener, intraday e fondamentali dipende comunque dagli endpoint
-inclusi nell'abbonamento EODHD acquistato.
+Obiettivo operativo: controllare il maggior numero possibile di azioni ordinarie
+eleggibili, con limite di sicurezza a **50.000 righe**. Il numero effettivo varia
+con copertura EODHD e filtri di liquidità/prezzo/capitalizzazione; il contatore
+`Universo` mostra quello realmente processato, non un target teorico. Fino a 300
+candidati ricevono il Deep Engine automatico e fino a 120 il Catalyst Engine.
+Un catalogo Light ampio resta consultabile per le fasce Normale/Forte/Molto forte.
+
+Per le azioni USA, quando apri una scheda o un grafico, il backend tenta il feed
+**WebSocket realtime EODHD** incluso nell'All-In-One; se non riceve un trade entro
+il timeout, torna automaticamente alla quota REST ritardata. Per i mercati non
+USA la quota recente REST resta normalmente ritardata secondo il provider.
+
+Il fallback di emergenza a un piccolo universo serve solo se il Bulk provider è
+temporaneamente indisponibile e viene segnalato esplicitamente nella diagnostica;
+non è la modalità normale della v2.3.
 
 ## Primo controllo dopo il deploy
 
-1. Apri `https://<server>/health`: deve mostrare `version: 2.2.0`,
+1. Apri `https://<server>/health`: deve mostrare `version: 2.3.0`,
    `data_mode: live` e `real_data_only: true`.
 2. Nell'app apri **Impostazioni > Testa**: vengono verificati anche database,
    snapshot ed esiti storici.

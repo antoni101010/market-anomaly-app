@@ -7,29 +7,38 @@ strutturali e presentare evidenze verificabili. Il prodotto è uno strumento di
 ricerca quantitativa: non formula raccomandazioni personali, prezzi obiettivo,
 importi da investire o istruzioni di acquisto/vendita.
 
-## Pipeline Light / Deep
+## Pipeline Light / Deep (v2.3, sostituisce il flusso v2.1)
 
-1. Il Light Scanner interroga lo Screener EODHD su 19 mercati configurabili e
-   filtra prezzo, liquidità, capitalizzazione e movimento giornaliero.
-2. Deduplica ticker e scarta fondi, ETF, warrant, obbligazioni e preferred
-   quando il tipo di strumento è disponibile.
-3. Ordina gli shock peggiori e inoltra fino a 200 candidati al Deep Engine.
-4. Il Deep Engine recupera storico, quota recente, fondamentali e filing;
-   confronta ogni titolo con benchmark di mercato e settore coerenti.
-5. I risultati superano filtri personali separati: mercato, dimensione,
-   settori, rischio, anomalia, opportunità e affidabilità.
+1. Il Global Light Scanner usa il Bulk EOD `extended` EODHD su un core
+   multi-exchange mondiale e calcola un primo punteggio su ogni azione ordinaria
+   eleggibile: drawdown 250d, shock 1d, volume anomalo, distanza EMA50/EMA200,
+   liquidità e capitalizzazione. Non richiede un crollo giornaliero minimo.
+2. Le quotazioni multiple della stessa società vengono deduplicate quando
+   possibile (ISIN/liquidità); OTC/PINK, fondi, ETF, warrant, preferred, bond e
+   strumenti non coerenti col core vengono esclusi dallo scanner automatico.
+3. L'universo Light ha un limite tecnico di sicurezza a 50.000 righe e il
+   contatore in app mostra quante sono state realmente processate.
+4. Un ranking globale con copertura geografica seleziona fino a 300 candidati
+   Deep; fino a 120 ricevono automaticamente anche news/catalizzatore.
+5. Il Deep Engine recupera storico, fondamentali, valuation, rischi, benchmark e
+   settore. Le schede Light non ancora Deep avviano l'analisi completa on-demand.
+6. La home mostra per default le anomalie Molto forti; i filtri permettono fasce
+   Normale (20–39,9), Forte (40–59,9) e Molto forte (60–100).
 
-L'obiettivo Light è 10.000 strumenti coperti, non 10.000 richieste complete:
-il provider applica i filtri sul proprio universo e restituisce solo i
-candidati. Il numero effettivo dipende dalla copertura e dalle quote API.
+L'obiettivo non è un numero fisso di società ma **il massimo universo eleggibile
+compatibile con copertura e limiti API**. 10.000–20.000+ sono valori attesi in
+universi ampi, non un tetto: se il provider restituisce più titoli eleggibili il
+Light Scanner può processarli fino al limite di sicurezza.
 
 ## Prezzi e grafico
 
 - La quota mostrata è raw/non rettificata e arriva dall'endpoint più recente.
 - Gli indicatori e il grafico storico usano la serie rettificata dal provider
   per split e corporate action, evitando falsi crolli tecnici.
-- Ogni prezzo espone valuta, provider, timestamp e stato: live, ritardato,
-  ultima chiusura, vecchio, conflitto o non verificato.
+- Ogni prezzo espone valuta, provider, timestamp e stato: tempo reale verificato,
+  mercato esteso, mercato chiuso, ritardato, ultima chiusura, vecchio, conflitto
+  o non verificato. Per le singole schede USA il backend tenta il WebSocket EODHD;
+  la scansione globale non apre migliaia di socket.
 - Le capitalizzazioni restano visibili nella valuta di quotazione, ma i filtri
   piccola/media/grande usano una colonna USD separata ottenuta dal cambio EOD;
   valori non convertibili non vengono confrontati con soglie USD.
@@ -147,3 +156,17 @@ scelto. I fondamentali PIT sono utilizzabili solo quando la fonte consente di
 ricostruire ciò che era pubblicato alla data evento; non si sostituiscono con
 fondamentali attuali. Rate limit, piano commerciale, copertura benchmark e
 calendario delle sedute limitano ampiezza e interpretazione dei risultati.
+
+## Addendum v2.3 — scanner globale obbligatorio
+
+Lo scanner di produzione deve controllare il maggior numero possibile di
+azioni ordinarie eleggibili, idealmente 10.000–20.000+ quando gli exchange e il
+provider lo consentono. Il Light Scanner attraversa l'intero universo; solo
+successivamente il Deep Engine seleziona i candidati più forti. Un titolo non
+può essere escluso soltanto perché non ha superato una soglia di ribasso
+singolo-giorno. La classifica predefinita privilegia l'Anomaly Score; filtri
+semplici permettono Normale/Forte/Molto forte.
+
+Caso obbligatorio di non-regressione: un profilo APP/AppLovin-like con drawdown
+profondo deve essere scoperto automaticamente e non soltanto tramite ricerca
+manuale.
