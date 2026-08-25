@@ -1,0 +1,57 @@
+name: Build Android APK
+
+# Si attiva ad ogni push sul branch main e può anche essere lanciato a mano
+# dalla tab "Actions" di GitHub (utile per ricompilare senza nuove modifiche).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del codice
+        uses: actions/checkout@v5
+
+      - name: Installa Java (richiesto da Android Gradle)
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Installa Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Genera la cartella android/ se non esiste ancora
+        run: |
+          if [ ! -d "android" ]; then
+            echo "Cartella android/ assente: la genero con 'flutter create'."
+            flutter create --platforms=android --org com.marketanomaly --project-name market_anomaly /tmp/scaffold
+            cp -r /tmp/scaffold/android ./android
+            sed -i 's/android:label="market_anomaly"/android:label="Market Anomaly"/' android/app/src/main/AndroidManifest.xml
+            sed -i '/<manifest /a\    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
+          else
+            echo "Cartella android/ già presente, la riuso."
+          fi
+
+      - name: Installa le dipendenze del progetto
+        run: flutter pub get
+
+      - name: Analizza il codice
+        run: flutter analyze
+
+      - name: Esegue i test Flutter
+        run: flutter test
+
+      - name: Compila l'APK di release
+        run: flutter build apk --release
+
+      - name: Carica l'APK come artefatto scaricabile
+        uses: actions/upload-artifact@v4
+        with:
+          name: market-anomaly-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+          retention-days: 30

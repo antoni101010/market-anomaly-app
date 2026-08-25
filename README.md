@@ -1,10 +1,21 @@
-# Market Anomaly App 2.0
+# Market Anomaly App 2.3
 
-App Flutter/Android coordinata con Market Anomaly API 2.0.
+App Flutter/Android per Market Anomaly API 2.3.
 
-Funzioni principali: dashboard filtrabile, ricerca globale, dettaglio con
-grafico 1G/5G/1M/6M/1A/5A, valuta/fonte/orario prezzo, watchlist, storico,
-feedback al modello e più configurazioni personali salvate.
+La home mostra separatamente **Universo**, **Candidati Light** e **Deep**. La
+classifica predefinita è ordinata prima per forza dell'anomalia statistica; i
+filtri permettono di includere movimenti normali, forti o molto forti.
+
+La v2.3 corregge i periodi 1G/5G/1M/6M/1A/5A, rende leggibili fonti e stato dei
+dati, elimina il badge `LIVE` fuorviante e usa `DATI REALI` quando il backend è
+in produzione. Una quota può essere indicata come ritardata, ultima chiusura,
+non recente, mercato chiuso oppure tempo reale verificato. Per le schede USA il
+backend tenta il WebSocket realtime EODHD dell'All-In-One e ricade sulla quota
+REST ritardata se il feed streaming non è disponibile.
+
+La scheda titolo usa linguaggio statistico neutro: somiglianza con casi
+storici, pattern storici comparabili, qualità/completezza dati, rischi e
+catalizzatori. Non contiene istruzioni di acquisto/vendita o target price.
 
 Il workflow `.github/workflows/build_apk.yml` esegue:
 
@@ -15,6 +26,4 @@ flutter test
 flutter build apk --release
 ```
 
-L'artefatto finale è `market-anomaly-apk/app-release.apk`. Le chiavi dei
-provider finanziari non devono essere inserite nell'app: restano sul backend.
-Per istruzioni complete usa `LEGGIMI-PRIMA.md` nella cartella superiore.
+Versione app: `2.3.0+23`.
